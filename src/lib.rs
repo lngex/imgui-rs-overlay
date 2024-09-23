@@ -103,7 +103,8 @@ pub use error::*;
 
 mod input;
 mod window_tracker;
-
+pub use imgui;
+pub use windows;
 pub use window_tracker::OverlayTarget;
 
 mod vulkan;
