@@ -1,6 +1,15 @@
 ### 核心代码来自[Valthrun](https://github.com/Valthrun/Valthrun)
 ***
-示例
+## 示例
+
+Cargo.toml
+```
+imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay"}
+anyhow = "1.0.89"
+env_logger = "0.11.5"
+log = "0.4.22"
+```
+main.rs
 ```
 use imgui_rs_overlay::imgui::{
     FontConfig,
