@@ -11,12 +11,13 @@ log = "0.4.22"
 ```
 main.rs
 ```
+
 use imgui_rs_overlay::imgui::{
     FontConfig,
     FontGlyphRanges,
     FontSource,
 };
-use imgui_rs_overlay::OverlayTarget;
+use imgui_rs_overlay::{imgui, OverlayTarget};
 
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
@@ -29,7 +30,26 @@ fn main() -> anyhow::Result<()> {
             title: "Task Manager Overlay".to_string(),
             target: OverlayTarget::WindowTitle("计算器".into()),
             fps: 60,
+            // 自定义字体
             font_init: Some(Box::new(|imgui| {
+                imgui.fonts().clear();
+                imgui.fonts().add_font(&[FontSource::TtfData {
+                    data: include_bytes!(r"C:\Windows\Fonts\monbaiti.ttf"),
+                    size_pixels: 15.0,
+                    config: Some(FontConfig {
+                        glyph_ranges: FontGlyphRanges::chinese_full(),
+                        // As imgui-glium-renderer isn't gamma-correct with
+                        // it's font rendering, we apply an arbitrary
+                        // multiplier to make the font a bit "heavier". With
+                        // default imgui-glow-renderer this is unnecessary.
+                        rasterizer_multiply: 1.5,
+                        // Oversampling font helps improve text rendering at
+                        // expense of larger font atlas texture.
+                        oversample_h: 4,
+                        oversample_v: 4,
+                        ..FontConfig::default()
+                    }),
+                }]);
             })),
         }).unwrap();
         let mut text_input = Default::default();
@@ -62,6 +82,7 @@ fn main() -> anyhow::Result<()> {
     let _ = handle.join();
     Ok(())
 }
+
 ```
 
 
