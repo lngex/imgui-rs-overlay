@@ -206,7 +206,7 @@ fn create_imgui_context(options: &OverlayOptions) -> Result<(WinitPlatform, imgu
     // value (as the scaling is handled by winit)
     let font_size = 18.0;
     imgui.fonts().add_font(&[FontSource::TtfData {
-        data: include_bytes!("../resources/SIMYOU.TTF"),
+        data: include_bytes!("../resources/HPSimplified_Bd.ttf"),
         size_pixels: font_size,
         config: Some(FontConfig {
             glyph_ranges: imgui::FontGlyphRanges::chinese_full(),
