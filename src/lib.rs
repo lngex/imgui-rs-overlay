@@ -103,8 +103,12 @@ pub use error::*;
 
 mod input;
 mod window_tracker;
+
+#[cfg(feature = "imgui")]
 pub use imgui;
+#[cfg(feature = "windows")]
 pub use windows;
+
 pub use window_tracker::OverlayTarget;
 
 mod vulkan;
