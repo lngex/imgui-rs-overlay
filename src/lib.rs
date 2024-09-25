@@ -140,6 +140,7 @@ pub fn show_error_message(title: &str, message: &str) {
 fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<Window> {
     let window = WindowBuilder::new()
         .with_title(title.to_owned())
+        .with_always_on_top(true)
         .with_visible(false)
         .build(&event_loop)?;
 
