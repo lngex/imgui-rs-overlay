@@ -4,7 +4,7 @@
 
 Cargo.toml
 ```
-imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay"}
+imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay",default-features = false,features = ["imgui","windows"],branch = "vulkan_1.14"}
 anyhow = "1.0.89"
 env_logger = "0.11.5"
 log = "0.4.22"
