@@ -6,8 +6,8 @@ use windows::{
     core::PCWSTR,
     Win32::{
         Foundation::{
-            GetLastError,
             ERROR_INVALID_WINDOW_HANDLE,
+            GetLastError,
             HWND,
             LPARAM,
             POINT,
@@ -133,7 +133,7 @@ impl WindowTracker {
         self.current_bounds = Default::default();
     }
 
-    pub fn update(&mut self, overlay: &Window) -> bool {
+    pub fn update(&mut self, hwnd: HWND) -> bool {
         let mut rect: RECT = Default::default();
         let success = unsafe { GetClientRect(self.hwnd, &mut rect) };
         if !success.is_ok() {
@@ -152,10 +152,6 @@ impl WindowTracker {
         }
 
         if unsafe { GetFocus() } != self.hwnd {
-            /*
-             * CS2 will render a black screen as soon as CS2 does not have the focus and is completely covered by
-             * another window. To prevent the overlay covering CS2 we make it one pixel less then the actual CS2 window.
-             */
             rect.bottom -= 1;
         }
 
@@ -166,9 +162,8 @@ impl WindowTracker {
         self.current_bounds = rect;
         log::debug!("Window bounds changed: {:?}", rect);
         unsafe {
-            let overlay_hwnd = HWND(overlay.hwnd() as _);
             let _ = MoveWindow(
-                overlay_hwnd,
+                hwnd,
                 rect.left,
                 rect.top,
                 rect.right - rect.left,
@@ -177,7 +172,7 @@ impl WindowTracker {
             );
 
             // Request repaint, so we acknoledge the new bounds
-            SendMessageA(overlay_hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
+            SendMessageA(hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
         }
 
         true

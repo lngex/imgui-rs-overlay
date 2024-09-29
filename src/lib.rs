@@ -6,7 +6,6 @@ use std::ops::Add;
 use std::time::Duration;
 
 use ash::vk;
-use clipboard::ClipboardSupport;
 use copypasta::ClipboardContext;
 use imgui::{
     Context,
@@ -14,11 +13,14 @@ use imgui::{
     FontSource,
     Io,
 };
+#[cfg(feature = "imgui")]
+pub use imgui;
 use imgui_rs_vulkan_renderer::{
     Options,
     Renderer,
 };
 use imgui_winit_support::{
+    HiDpiMode,
     winit::{
         dpi::PhysicalSize,
         event::{
@@ -35,18 +37,12 @@ use imgui_winit_support::{
             WindowBuilder,
         },
     },
-    HiDpiMode,
     WinitPlatform,
 };
-use imgui_winit_support::winit::event_loop::EventLoopBuilder;
+use imgui_winit_support::winit::event_loop::{EventLoopBuilder, EventLoopWindowTarget};
 use imgui_winit_support::winit::platform::windows::EventLoopBuilderExtWindows;
-use log::info;
-use input::{
-    KeyboardInputSystem,
-    MouseInputSystem,
-};
+use log::{debug, info};
 use obfstr::obfstr;
-use window_tracker::WindowTracker;
 use windows::{
     core::PCSTR,
     Win32::{
@@ -56,10 +52,10 @@ use windows::{
         },
         Graphics::{
             Dwm::{
-                DwmEnableBlurBehindWindow,
                 DWM_BB_BLURREGION,
                 DWM_BB_ENABLE,
                 DWM_BLURBEHIND,
+                DwmEnableBlurBehindWindow,
             },
             Gdi::CreateRectRgn,
         },
@@ -67,21 +63,21 @@ use windows::{
             Input::KeyboardAndMouse::SetActiveWindow,
             WindowsAndMessaging::{
                 GetWindowLongPtrA,
+                GWL_EXSTYLE,
+                GWL_STYLE,
+                HWND_TOPMOST,
+                MB_ICONERROR,
+                MB_OK,
                 MessageBoxA,
                 SetWindowDisplayAffinity,
                 SetWindowLongA,
                 SetWindowLongPtrA,
                 SetWindowPos,
                 ShowWindow,
-                GWL_EXSTYLE,
-                GWL_STYLE,
-                HWND_TOPMOST,
-                MB_ICONERROR,
-                MB_OK,
+                SW_SHOWNOACTIVATE,
                 SWP_NOACTIVATE,
                 SWP_NOMOVE,
                 SWP_NOSIZE,
-                SW_SHOWNOACTIVATE,
                 WDA_EXCLUDEFROMCAPTURE,
                 WDA_NONE,
                 WS_CLIPSIBLINGS,
@@ -95,31 +91,31 @@ use windows::{
         },
     },
 };
+#[cfg(feature = "windows")]
+pub use windows;
+
+use clipboard::ClipboardSupport;
+pub use error::*;
+use input::{
+    KeyboardInputSystem,
+    MouseInputSystem,
+};
+pub use perf::PerfTracker;
+use vulkan_render::*;
+pub use window_tracker::OverlayTarget;
+use window_tracker::WindowTracker;
 
 mod clipboard;
 mod error;
 
-pub use error::*;
-
 mod input;
 mod window_tracker;
-
-#[cfg(feature = "imgui")]
-pub use imgui;
-#[cfg(feature = "windows")]
-pub use windows;
-
-pub use window_tracker::OverlayTarget;
 
 mod vulkan;
 
 mod perf;
 
-pub use perf::PerfTracker;
-
 mod vulkan_render;
-
-use vulkan_render::*;
 
 mod util;
 mod vulkan_driver;
@@ -137,15 +133,24 @@ pub fn show_error_message(title: &str, message: &str) {
     }
 }
 
-fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<Window> {
+fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWND)> {
     let window = WindowBuilder::new()
         .with_title(title.to_owned())
-        .with_always_on_top(true)
         .with_visible(false)
         .build(&event_loop)?;
-
+    let my_hwnd = {
+        let id = window.id();
+        let string = format!("{:?}", id);
+        let mut my_hwnd = String::new();
+        for char in string.chars() {
+            if char.is_digit(10) {
+                my_hwnd.push(char);
+            }
+        }
+        my_hwnd.parse::<isize>().unwrap()
+    };
+    let hwnd: HWND = HWND(my_hwnd as _);
     {
-        let hwnd = HWND(window.hwnd() as _);
         unsafe {
             // Make it transparent
             SetWindowLongA(
@@ -167,7 +172,7 @@ fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<Window> {
             DwmEnableBlurBehindWindow(hwnd, &bb)?;
 
             // Move the window to the top
-            SetWindowPos(
+            let _ = SetWindowPos(
                 hwnd,
                 HWND_TOPMOST,
                 0,
@@ -179,7 +184,7 @@ fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<Window> {
         }
     }
 
-    Ok(window)
+    Ok((window, hwnd))
 }
 
 pub struct OverlayOptions {
@@ -249,6 +254,8 @@ pub struct System {
     pub window_tracker: WindowTracker,
     /// 帧率刷新间隔，单位毫秒
     pub fps_time_interval: i32,
+    /// 覆盖窗口句柄
+    pub hwnd: HWND,
 }
 
 pub fn init(options: &OverlayOptions) -> Result<System> {
@@ -256,12 +263,13 @@ pub fn init(options: &OverlayOptions) -> Result<System> {
 
     let event_loop = EventLoopBuilder::new()
         .with_any_thread(true)
-        .build();
-    let window = create_window(&event_loop, &options.title)?;
+        .build()
+        .expect("时间循环构建失败");
+    let (window, hwnd) = create_window(&event_loop, &options.title)?;
 
     let vulkan_context = VulkanContext::new(&window, &options.title)?;
     let command_buffer = {
-        let allocate_info = vk::CommandBufferAllocateInfo::builder()
+        let allocate_info = vk::CommandBufferAllocateInfo::default()
             .command_pool(vulkan_context.command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
@@ -275,7 +283,7 @@ pub fn init(options: &OverlayOptions) -> Result<System> {
 
     let swapchain = Swapchain::new(&vulkan_context)?;
     let image_available_semaphore = {
-        let semaphore_info = vk::SemaphoreCreateInfo::builder();
+        let semaphore_info = vk::SemaphoreCreateInfo::default();
         unsafe {
             vulkan_context
                 .device
@@ -283,7 +291,7 @@ pub fn init(options: &OverlayOptions) -> Result<System> {
         }
     };
     let render_finished_semaphore = {
-        let semaphore_info = vk::SemaphoreCreateInfo::builder();
+        let semaphore_info = vk::SemaphoreCreateInfo::default();
         unsafe {
             vulkan_context
                 .device
@@ -291,7 +299,7 @@ pub fn init(options: &OverlayOptions) -> Result<System> {
         }
     };
     let fence = {
-        let fence_info = vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+        let fence_info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
         unsafe { vulkan_context.device.create_fence(&fence_info, None)? }
     };
 
@@ -335,6 +343,7 @@ pub fn init(options: &OverlayOptions) -> Result<System> {
 
         window_tracker,
         fps_time_interval,
+        hwnd,
     })
 }
 
@@ -351,7 +360,7 @@ impl OverlayActiveTracker {
         }
     }
 
-    pub fn update(&mut self, window: &Window, io: &Io) {
+    pub fn update(&mut self, hwnd: HWND, io: &Io) {
         let window_active = io.want_capture_mouse | io.want_capture_keyboard;
         if window_active == self.currently_active {
             return;
@@ -359,7 +368,6 @@ impl OverlayActiveTracker {
 
         self.currently_active = window_active;
         unsafe {
-            let hwnd = HWND(window.hwnd() as _);
             let mut style = GetWindowLongPtrA(hwnd, GWL_EXSTYLE);
             if window_active {
                 style &= !((WS_EX_NOACTIVATE | WS_EX_TRANSPARENT).0 as isize);
@@ -370,7 +378,7 @@ impl OverlayActiveTracker {
             log::trace!("Set UI active: {window_active}");
             SetWindowLongPtrA(hwnd, GWL_EXSTYLE, style);
             if window_active {
-                SetActiveWindow(hwnd);
+                let _ = SetActiveWindow(hwnd);
             }
         }
     }
@@ -379,7 +387,7 @@ impl OverlayActiveTracker {
 const PERF_RECORDS: usize = 2048;
 
 impl System {
-    pub fn main_loop<U, R>(self, mut update: U, mut render: R) -> !
+    pub fn main_loop<U, R>(self, mut update: U, mut render: R)
         where
             U: FnMut(&mut SystemRuntimeController) -> bool + 'static,
             R: FnMut(&mut imgui::Ui) -> bool + 'static,
@@ -398,12 +406,13 @@ impl System {
             mut renderer,
             window_tracker,
             fps_time_interval,
+            hwnd,
             ..
         } = self;
         let mut last_frame = Instant::now();
 
         let mut runtime_controller = SystemRuntimeController {
-            hwnd: HWND(window.hwnd() as _),
+            hwnd,
             imgui,
 
             active_tracker: OverlayActiveTracker::new(),
@@ -419,10 +428,8 @@ impl System {
         let target_frame_time = Duration::from_millis(fps_time_interval as u64);
         let mut last_time = Instant::now();
         let mut perf = PerfTracker::new(PERF_RECORDS);
-        event_loop.run(move |event, _, control_flow| {
-            *control_flow = ControlFlow::Poll;
+        event_loop.run(move |event, control_flow| {
             platform.handle_event(runtime_controller.imgui.io_mut(), &window, &event);
-
             match event {
                 // New frame
                 Event::NewEvents(_) => {
@@ -436,19 +443,42 @@ impl System {
                 }
 
                 // End of event processing
-                Event::MainEventsCleared => {
+                Event::AboutToWait => {
+                    platform
+                        .prepare_frame(runtime_controller.imgui.io_mut(), &window)
+                        .expect("Failed to prepare frame");
+                    // 计算这一帧所花费的时间
+                    let frame_time = last_time.elapsed();
+                    // 计算还需要延迟多久才能达到目标帧时间
+                    let remaining_time = target_frame_time.saturating_sub(frame_time);
+                    // 如果这一帧耗时少于目标帧时间，则延迟剩余的时间
+                    if remaining_time > Duration::from_secs(0) {
+                        std::thread::sleep(remaining_time);
+                    }
+                    // 更新上次记录的时间点
+                    last_time = Instant::now();
+                    window.request_redraw();
+                }
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    ..
+                } => control_flow.exit(),
+                Event::WindowEvent {
+                    event: WindowEvent::RedrawRequested,
+                    ..
+                } => {
                     perf.mark("events cleared");
 
                     /* Update */
                     {
-                        if !runtime_controller.update_state(&window) {
+                        if !runtime_controller.update_state(&window, hwnd) {
                             log::info!("Target window has been closed. Exiting overlay.");
-                            *control_flow = ControlFlow::Exit;
+                            control_flow.exit();
                             return;
                         }
 
                         if !update(&mut runtime_controller) {
-                            *control_flow = ControlFlow::Exit;
+                            control_flow.exit();
                             return;
                         }
 
@@ -473,18 +503,10 @@ impl System {
                             }
                         }
 
-                        if let Err(error) =
-                            platform.prepare_frame(runtime_controller.imgui.io_mut(), &window)
-                        {
-                            *control_flow = ControlFlow::ExitWithCode(1);
-                            log::error!("Platform implementation prepare_frame failed: {}", error);
-                            return;
-                        }
-
                         let ui = runtime_controller.imgui.frame();
                         let run = render(ui);
                         if !run {
-                            *control_flow = ControlFlow::ExitWithCode(0);
+                            control_flow.exit();
                             return;
                         }
                         if runtime_controller.debug_overlay_shown {
@@ -515,14 +537,12 @@ impl System {
                                 });
                         }
                         perf.mark("render frame");
-
-                        platform.prepare_render(ui, &window);
                         let draw_data = runtime_controller.imgui.render();
 
                         unsafe {
                             vulkan_context
                                 .device
-                                .wait_for_fences(&[fence], true, std::u64::MAX)
+                                .wait_for_fences(&[fence], true, u64::MAX)
                                 .expect("Failed to wait ")
                         };
 
@@ -571,12 +591,11 @@ impl System {
                             .expect("Failed to record command buffer");
 
                         let command_buffers = [command_buffer];
-                        let submit_info = [vk::SubmitInfo::builder()
+                        let submit_info = [vk::SubmitInfo::default()
                             .wait_semaphores(&wait_semaphores)
                             .wait_dst_stage_mask(&wait_stages)
                             .command_buffers(&command_buffers)
-                            .signal_semaphores(&signal_semaphores)
-                            .build()];
+                            .signal_semaphores(&signal_semaphores)];
 
                         perf.mark("before submit");
                         unsafe {
@@ -589,7 +608,7 @@ impl System {
 
                         let swapchains = [swapchain.khr];
                         let images_indices = [image_index];
-                        let present_info = vk::PresentInfoKHR::builder()
+                        let present_info = vk::PresentInfoKHR::default()
                             .wait_semaphores(&signal_semaphores)
                             .swapchains(&swapchains)
                             .image_indices(&images_indices);
@@ -612,49 +631,31 @@ impl System {
                         perf.finish("present");
 
                         runtime_controller.frame_rendered();
-                        // 计算这一帧所花费的时间
-                        let frame_time = last_time.elapsed();
-                        // 计算还需要延迟多久才能达到目标帧时间
-                        let remaining_time = target_frame_time.saturating_sub(frame_time);
-                        // 如果这一帧耗时少于目标帧时间，则延迟剩余的时间
-                        if remaining_time > Duration::from_secs(0) {
-                            std::thread::sleep(remaining_time);
-                        }
-                        // 更新上次记录的时间点
-                        last_time = Instant::now();
                     }
                 }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => *control_flow = ControlFlow::Exit,
                 _ => {}
             }
-        })
+        }).expect("循环事件发生错误");
     }
 }
 
 pub struct SystemRuntimeController {
     pub hwnd: HWND,
-
-    pub imgui: imgui::Context,
+    pub imgui: Context,
     debug_overlay_shown: bool,
-
     active_tracker: OverlayActiveTracker,
     mouse_input_system: MouseInputSystem,
     key_input_system: KeyboardInputSystem,
-
     window_tracker: WindowTracker,
-
     frame_count: u64,
 }
 
 impl SystemRuntimeController {
-    fn update_state(&mut self, window: &Window) -> bool {
-        self.mouse_input_system.update(window, self.imgui.io_mut());
+    fn update_state(&mut self, window: &Window, hwnd: HWND) -> bool {
+        self.mouse_input_system.update(window, hwnd, self.imgui.io_mut());
         self.key_input_system.update(window, self.imgui.io_mut());
-        self.active_tracker.update(window, self.imgui.io());
-        if !self.window_tracker.update(window) {
+        self.active_tracker.update(hwnd, self.imgui.io());
+        if !self.window_tracker.update(hwnd) {
             log::info!("Target window has been closed. Exiting overlay.");
             return false;
         }
@@ -666,7 +667,7 @@ impl SystemRuntimeController {
         self.frame_count += 1;
         if self.frame_count == 1 {
             /* initial frame */
-            unsafe { ShowWindow(self.hwnd, SW_SHOWNOACTIVATE) };
+            unsafe { let _ = ShowWindow(self.hwnd, SW_SHOWNOACTIVATE); };
 
             self.window_tracker.mark_force_update();
         }

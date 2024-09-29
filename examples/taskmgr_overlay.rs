@@ -3,6 +3,7 @@ use imgui::{
     FontGlyphRanges,
     FontSource,
 };
+
 use imgui_rs_overlay::OverlayTarget;
 
 fn main() -> anyhow::Result<()> {

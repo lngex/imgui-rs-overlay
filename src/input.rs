@@ -4,7 +4,7 @@ use imgui::{
 };
 use imgui_winit_support::winit::{
     platform::windows::WindowExtWindows,
-    window::Window,
+    window::Window
 };
 use windows::Win32::{
     Foundation::{
@@ -39,16 +39,17 @@ const VK_KEY_MAX: usize = 256;
 
 #[derive(Debug, Default)]
 pub struct MouseInputSystem;
+
 impl MouseInputSystem {
     pub fn new() -> Self {
         Self {}
     }
 
-    pub fn update(&mut self, window: &Window, io: &mut imgui::Io) {
+    pub fn update(&mut self, window: &Window,hwnd: HWND, io: &mut imgui::Io) {
         let mut point: POINT = Default::default();
         unsafe {
-            GetCursorPos(&mut point);
-            ScreenToClient(HWND(window.hwnd() as _), &mut point);
+            let _ = GetCursorPos(&mut point);
+            let _ = ScreenToClient(hwnd, &mut point);
         };
 
         io.add_mouse_pos_event([

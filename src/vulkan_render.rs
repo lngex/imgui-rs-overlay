@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::ffi::{
     c_void,
     CStr,
@@ -5,30 +6,27 @@ use std::ffi::{
 };
 
 use ash::{
-    extensions::{
-        ext::DebugUtils,
-        khr::{
-            Surface,
-            Swapchain as SwapchainLoader,
-        },
-    },
-    vk,
     Device,
     Entry,
+    ext::debug_utils,
     Instance,
+    khr::{
+        surface as Surface,
+        swapchain as SwapchainLoader,
+    },
+    vk,
 };
+use ash::khr::{surface, swapchain};
 use imgui::DrawData;
 use imgui_rs_vulkan_renderer::Renderer;
+use imgui_winit_support::winit::raw_window_handle::HasDisplayHandle;
+use imgui_winit_support::winit::raw_window_handle::HasWindowHandle;
 use imgui_winit_support::winit::window::Window;
-use raw_window_handle::{
-    HasRawDisplayHandle,
-    HasRawWindowHandle,
-};
 
 use crate::{
     error::Result,
-    vulkan_driver::get_vulkan_entry,
     OverlayError,
+    vulkan_driver::get_vulkan_entry,
 };
 
 const WIDTH: u32 = 1024;
@@ -37,9 +35,9 @@ const HEIGHT: u32 = 768;
 pub struct VulkanContext {
     _entry: Entry,
     pub instance: Instance,
-    debug_utils: DebugUtils,
+    debug_utils: debug_utils::Instance,
     debug_utils_messenger: vk::DebugUtilsMessengerEXT,
-    surface: Surface,
+    surface: surface::Instance,
     surface_khr: vk::SurfaceKHR,
     pub physical_device: vk::PhysicalDevice,
     graphics_q_index: u32,
@@ -58,16 +56,15 @@ impl VulkanContext {
             create_vulkan_instance(&entry, window, name)?;
 
         // Vulkan surface
-        let surface = Surface::new(&entry, &instance);
+        let surface = surface::Instance::new(&entry, &instance);
         let surface_khr = unsafe {
             ash_window::create_surface(
                 &entry,
                 &instance,
-                window.raw_display_handle(),
-                window.raw_window_handle(),
+                window.display_handle().unwrap().into(),
+                window.window_handle().unwrap().into(),
                 None,
-            )
-            .map_err(OverlayError::VulkanSurfaceCreationFailed)?
+            )?
         };
 
         // Vulkan physical device and queue families indices (graphics and present)
@@ -89,7 +86,7 @@ impl VulkanContext {
 
         // Command pool & buffer
         let command_pool = {
-            let command_pool_info = vk::CommandPoolCreateInfo::builder()
+            let command_pool_info = vk::CommandPoolCreateInfo::default()
                 .queue_family_index(graphics_q_index)
                 .flags(vk::CommandPoolCreateFlags::empty());
             unsafe { device.create_command_pool(&command_pool_info, None)? }
@@ -128,7 +125,7 @@ impl Drop for VulkanContext {
 }
 
 pub struct Swapchain {
-    pub loader: SwapchainLoader,
+    pub loader: swapchain::Device,
     pub extent: vk::Extent2D,
     pub khr: vk::SwapchainKHR,
     pub images: Vec<vk::Image>,
@@ -212,49 +209,31 @@ fn create_vulkan_instance(
     entry: &Entry,
     window: &Window,
     title: &str,
-) -> crate::Result<(Instance, DebugUtils, vk::DebugUtilsMessengerEXT)> {
-    let instance_version = match entry.try_enumerate_instance_version()? {
-        Some(version) => version,
-        None => vk::make_api_version(0, 1, 0, 0),
-    };
-    log::debug!(
-        "Detected vulkan version {}.{}.{}",
-        vk::api_version_major(instance_version),
-        vk::api_version_minor(instance_version),
-        vk::api_version_patch(instance_version)
-    );
-
+) -> crate::Result<(Instance, debug_utils::Instance, vk::DebugUtilsMessengerEXT)> {
+    log::debug!("Creating vulkan instance");
     // Vulkan instance
     let app_name = CString::new(title)?;
     let engine_name = CString::new("No Engine")?;
-    let app_info = vk::ApplicationInfo::builder()
+    let app_info = vk::ApplicationInfo::default()
         .application_name(app_name.as_c_str())
-        .application_version(vk::make_api_version(0, 1, 0, 0))
+        .application_version(vk::make_api_version(0, 0, 1, 0))
         .engine_name(engine_name.as_c_str())
-        .engine_version(vk::make_api_version(0, 1, 0, 0))
+        .engine_version(vk::make_api_version(0, 0, 1, 0))
         .api_version(vk::make_api_version(0, 1, 0, 0));
 
     let mut extension_names =
-        ash_window::enumerate_required_extensions(window.raw_display_handle())?.to_vec();
-    extension_names.push(DebugUtils::name().as_ptr());
+        ash_window::enumerate_required_extensions(window.display_handle().unwrap().into())?
+            .to_vec();
+    extension_names.push(debug_utils::NAME.as_ptr());
 
-    let enabled_layer_names = Vec::new();
-    /* If debug, may add some extra layers here */
-
-    let instance_create_info = vk::InstanceCreateInfo::builder()
+    let instance_create_info = vk::InstanceCreateInfo::default()
         .application_info(&app_info)
-        .enabled_extension_names(&extension_names)
-        .enabled_layer_names(&enabled_layer_names);
+        .enabled_extension_names(&extension_names);
 
-    log::debug!("Creating Vulkan instance");
-    let instance = unsafe {
-        entry
-            .create_instance(&instance_create_info, None)
-            .map_err(OverlayError::VulkanInstanceCreationFailed)?
-    };
+    let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
 
     // Vulkan debug report
-    let create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
+    let create_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
         .flags(vk::DebugUtilsMessengerCreateFlagsEXT::empty())
         .message_severity(
             vk::DebugUtilsMessageSeverityFlagsEXT::INFO
@@ -267,9 +246,7 @@ fn create_vulkan_instance(
                 | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
         )
         .pfn_user_callback(Some(vulkan_debug_callback));
-    let debug_utils = DebugUtils::new(entry, &instance);
-
-    log::debug!("Setup debug logging");
+    let debug_utils = debug_utils::Instance::new(entry, &instance);
     let debug_utils_messenger =
         unsafe { debug_utils.create_debug_utils_messenger(&create_info, None)? };
 
@@ -296,23 +273,13 @@ unsafe extern "system" fn vulkan_debug_callback(
 
 fn create_vulkan_physical_device_and_get_graphics_and_present_qs_indices(
     instance: &Instance,
-    surface: &Surface,
+    surface: &surface::Instance,
     surface_khr: vk::SurfaceKHR,
-) -> crate::Result<(vk::PhysicalDevice, u32, u32)> {
+) -> Result<(vk::PhysicalDevice, u32, u32)> {
     log::debug!("Creating vulkan physical device");
     let devices = unsafe { instance.enumerate_physical_devices()? };
     let mut graphics = None;
     let mut present = None;
-
-    log::debug!("Available devices:");
-    for device in &devices {
-        unsafe {
-            let props = instance.get_physical_device_properties(*device);
-            let device_name = CStr::from_ptr(props.device_name.as_ptr());
-            log::debug!("- {device_name:?}");
-        }
-    }
-
     let device = devices
         .into_iter()
         .find(|device| {
@@ -352,9 +319,9 @@ fn create_vulkan_physical_device_and_get_graphics_and_present_qs_indices(
                     .enumerate_device_extension_properties(device)
                     .expect("Failed to get device ext properties")
             };
-            let extention_support = extension_props.iter().any(|ext| {
+            let extension_support = extension_props.iter().any(|ext| {
                 let name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
-                SwapchainLoader::name() == name
+                swapchain::NAME == name
             });
 
             // Does the device have available formats for the given surface
@@ -373,7 +340,7 @@ fn create_vulkan_physical_device_and_get_graphics_and_present_qs_indices(
 
             graphics.is_some()
                 && present.is_some()
-                && extention_support
+                && extension_support
                 && !formats.is_empty()
                 && !present_modes.is_empty()
         })
@@ -403,17 +370,16 @@ fn create_vulkan_device_and_graphics_and_present_qs(
         indices
             .iter()
             .map(|index| {
-                vk::DeviceQueueCreateInfo::builder()
+                vk::DeviceQueueCreateInfo::default()
                     .queue_family_index(*index)
                     .queue_priorities(&queue_priorities)
-                    .build()
             })
             .collect::<Vec<_>>()
     };
 
-    let device_extensions_ptrs = [SwapchainLoader::name().as_ptr()];
+    let device_extensions_ptrs = [swapchain::NAME.as_ptr()];
 
-    let device_create_info = vk::DeviceCreateInfo::builder()
+    let device_create_info = vk::DeviceCreateInfo::default()
         .queue_create_infos(&queue_create_infos)
         .enabled_extension_names(&device_extensions_ptrs);
 
@@ -427,7 +393,7 @@ fn create_vulkan_device_and_graphics_and_present_qs(
 fn create_vulkan_swapchain(
     vulkan_context: &VulkanContext,
 ) -> Result<(
-    SwapchainLoader,
+    SwapchainLoader::Device,
     vk::SwapchainKHR,
     vk::Extent2D,
     vk::Format,
@@ -489,7 +455,7 @@ fn create_vulkan_swapchain(
 
     // Swapchain extent
     let extent = {
-        if capabilities.current_extent.width != std::u32::MAX {
+        if capabilities.current_extent.width != u32::MAX {
             capabilities.current_extent
         } else {
             let min = capabilities.min_image_extent;
@@ -511,7 +477,7 @@ fn create_vulkan_swapchain(
         vulkan_context.present_q_index,
     ];
     let create_info = {
-        let mut builder = vk::SwapchainCreateInfoKHR::builder()
+        let mut builder = vk::SwapchainCreateInfoKHR::default()
             .surface(vulkan_context.surface_khr)
             .min_image_count(image_count)
             .image_format(format.format)
@@ -535,7 +501,7 @@ fn create_vulkan_swapchain(
             .clipped(true)
     };
 
-    let swapchain = SwapchainLoader::new(&vulkan_context.instance, &vulkan_context.device);
+    let swapchain = swapchain::Device::new(&vulkan_context.instance, &vulkan_context.device);
     let swapchain_khr = unsafe { swapchain.create_swapchain(&create_info, None)? };
 
     // Swapchain images and image views
@@ -543,7 +509,7 @@ fn create_vulkan_swapchain(
     let views = images
         .iter()
         .map(|image| {
-            let create_info = vk::ImageViewCreateInfo::builder()
+            let create_info = vk::ImageViewCreateInfo::default()
                 .image(*image)
                 .view_type(vk::ImageViewType::TYPE_2D)
                 .format(format.format)
@@ -571,26 +537,23 @@ fn create_vulkan_swapchain(
 
 fn create_vulkan_render_pass(device: &Device, format: vk::Format) -> Result<vk::RenderPass> {
     log::debug!("Creating vulkan render pass");
-    let attachment_descs = [vk::AttachmentDescription::builder()
+    let attachment_descs = [vk::AttachmentDescription::default()
         .format(format)
         .samples(vk::SampleCountFlags::TYPE_1)
         .load_op(vk::AttachmentLoadOp::CLEAR)
         .store_op(vk::AttachmentStoreOp::STORE)
         .initial_layout(vk::ImageLayout::UNDEFINED)
-        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
-        .build()];
+        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)];
 
-    let color_attachment_refs = [vk::AttachmentReference::builder()
+    let color_attachment_refs = [vk::AttachmentReference::default()
         .attachment(0)
-        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-        .build()];
+        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
 
-    let subpass_descs = [vk::SubpassDescription::builder()
+    let subpass_descs = [vk::SubpassDescription::default()
         .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&color_attachment_refs)
-        .build()];
+        .color_attachments(&color_attachment_refs)];
 
-    let subpass_deps = [vk::SubpassDependency::builder()
+    let subpass_deps = [vk::SubpassDependency::default()
         .src_subpass(vk::SUBPASS_EXTERNAL)
         .dst_subpass(0)
         .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
@@ -598,10 +561,9 @@ fn create_vulkan_render_pass(device: &Device, format: vk::Format) -> Result<vk::
         .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
         .dst_access_mask(
             vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-        )
-        .build()];
+        )];
 
-    let render_pass_info = vk::RenderPassCreateInfo::builder()
+    let render_pass_info = vk::RenderPassCreateInfo::default()
         .attachments(&attachment_descs)
         .subpasses(&subpass_descs)
         .dependencies(&subpass_deps);
@@ -620,7 +582,7 @@ fn create_vulkan_framebuffers(
         .iter()
         .map(|view| [*view])
         .map(|attachments| {
-            let framebuffer_info = vk::FramebufferCreateInfo::builder()
+            let framebuffer_info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(&attachments)
                 .width(extent.width)
@@ -644,10 +606,10 @@ pub fn record_command_buffers(
     unsafe { device.reset_command_pool(command_pool, vk::CommandPoolResetFlags::empty())? };
 
     let command_buffer_begin_info =
-        vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
+        vk::CommandBufferBeginInfo::default().flags(vk::CommandBufferUsageFlags::SIMULTANEOUS_USE);
     unsafe { device.begin_command_buffer(command_buffer, &command_buffer_begin_info)? };
 
-    let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+    let render_pass_begin_info = vk::RenderPassBeginInfo::default()
         .render_pass(render_pass)
         .framebuffer(framebuffer)
         .render_area(vk::Rect2D {
