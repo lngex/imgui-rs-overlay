@@ -19,9 +19,10 @@ use ash::{
 use ash::khr::{surface, swapchain};
 use imgui::DrawData;
 use imgui_rs_vulkan_renderer::Renderer;
-use imgui_winit_support::winit::raw_window_handle::HasDisplayHandle;
-use imgui_winit_support::winit::raw_window_handle::HasWindowHandle;
+
 use imgui_winit_support::winit::window::Window;
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+
 
 use crate::{
     error::Result,
