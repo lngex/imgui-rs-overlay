@@ -3,6 +3,7 @@ use imgui::{
     FontGlyphRanges,
     FontSource,
 };
+use windows::core::w;
 use imgui_rs_overlay::OverlayTarget;
 
 fn main() -> anyhow::Result<()> {
@@ -11,6 +12,7 @@ fn main() -> anyhow::Result<()> {
         .parse_default_env()
         .init();
     log::info!("Initialize overlay");
+    w!()
     let handle = std::thread::spawn(|| {
         let overlay = imgui_rs_overlay::init(&imgui_rs_overlay::OverlayOptions {
             title: "Task Manager Overlay".to_string(),

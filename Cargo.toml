@@ -25,5 +25,5 @@ anyhow = "1.0.75"
 env_logger = "0.10.0"
 
 [features]
-windows=["windows/Win32_System_Diagnostics","windows/Win32_System_Diagnostics_Debug","windows/Win32_System_Threading","windows/Win32_System"]
+windows=["windows/Win32_System_Diagnostics","windows/Win32_System_Diagnostics_Debug","windows/Win32_System_Threading","windows/Win32_System","windows/Win32_System_ProcessStatus"]
 imgui=[]
