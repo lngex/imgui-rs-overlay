@@ -102,7 +102,7 @@ use input::{
 };
 pub use perf::PerfTracker;
 use vulkan_render::*;
-pub use window_tracker::OverlayTarget;
+pub use window_tracker::{OverlayTarget,WINDOWS_RECT};
 use window_tracker::WindowTracker;
 
 mod clipboard;

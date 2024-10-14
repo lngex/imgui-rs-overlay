@@ -39,6 +39,14 @@ use crate::{
     util,
 };
 
+/// 附加的窗口宽高(该属性只允许读，不允许写)
+pub static mut WINDOWS_RECT: Rect = Rect { width: 0, high: 0 };
+
+pub struct Rect {
+    pub width: i32,
+    pub high: i32,
+}
+
 pub enum OverlayTarget {
     Window(HWND),
     WindowTitle(String),
@@ -161,13 +169,19 @@ impl WindowTracker {
 
         self.current_bounds = rect;
         log::debug!("Window bounds changed: {:?}", rect);
+        let width = rect.right - rect.left;
+        let high = rect.right - rect.left;
+        unsafe {
+            WINDOWS_RECT.width = width;
+            WINDOWS_RECT.high = high;
+        }
         unsafe {
             let _ = MoveWindow(
                 hwnd,
                 rect.left,
                 rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
+                width,
+                high,
                 false, // Don't do a complete repaint (may flicker)
             );
 
