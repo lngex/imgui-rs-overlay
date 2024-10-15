@@ -19,14 +19,11 @@ use ash::{
 use ash::khr::{surface, swapchain};
 use imgui::DrawData;
 use imgui_rs_vulkan_renderer::Renderer;
-
 use imgui_winit_support::winit::window::Window;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-
 use crate::{
     error::Result,
-    OverlayError,
     vulkan_driver::get_vulkan_entry,
 };
 

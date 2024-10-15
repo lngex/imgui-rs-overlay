@@ -3,12 +3,6 @@ use imgui::{FontConfig, FontGlyphRanges, FontSource, TreeNodeFlags};
 
 use imgui_rs_overlay::{OverlayTarget, WINDOWS_RECT};
 
-#[derive(Debug)]
-pub struct Point<'a> {
-    pub x: &'a mut i32,
-    pub y: &'a i32,
-}
-
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Trace)
@@ -39,12 +33,10 @@ fn main() -> anyhow::Result<()> {
                 true
             },
             move |ui| {
-                unsafe { println!("窗口(宽：{}-高{})", WINDOWS_RECT.width, WINDOWS_RECT.high) };
                 ui.window("Dummy Window")
                     .resizable(true)
                     .movable(true)
                     .build(|| {
-                        ui.label_text("Taskmanager Overlay!", "test");
                         ui.text(format!("FPS: {:.2}", ui.io().framerate));
                         ui.input_text("Test-Input", &mut text_input).build();
                         ui.text("Привет, мир!");
@@ -53,7 +45,7 @@ fn main() -> anyhow::Result<()> {
                         ui.text("ສະ​ບາຍ​ດີ​ຊາວ​ໂລກ!");
                         ui.text("Салом Ҷаҳон!");
                         ui.text("こんにちは世界!");
-                        ui.label_text("你好世界!", "test");
+                        ui.text("你好世界!");
                     });
                 true
             },

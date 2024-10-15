@@ -190,6 +190,7 @@ fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWN
 pub struct OverlayOptions {
     pub title: String,
     pub target: OverlayTarget,
+    /// 帧率(近似值与实际有差别)
     pub fps: i32,
     pub font_init: Option<Box<dyn Fn(&mut imgui::Context) -> ()>>,
 }
