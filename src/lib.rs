@@ -94,6 +94,9 @@ use windows::{
 #[cfg(feature = "windows")]
 pub use windows;
 
+#[cfg(feature = "windows_service")]
+pub use windows_service;
+
 use clipboard::ClipboardSupport;
 pub use error::*;
 use input::{
