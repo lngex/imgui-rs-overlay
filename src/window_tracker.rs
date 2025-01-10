@@ -168,7 +168,6 @@ impl WindowTracker {
         }
 
         self.current_bounds = rect;
-        log::debug!("Window bounds changed: {:?}", rect);
         let width = rect.right - rect.left;
         let high = rect.bottom - rect.top;
         unsafe {

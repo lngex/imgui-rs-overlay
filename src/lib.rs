@@ -93,6 +93,7 @@ use windows::{
 };
 #[cfg(feature = "windows")]
 pub use windows;
+use winit::dpi::{LogicalSize, Size};
 
 #[cfg(feature = "windows_service")]
 pub use windows_service;
@@ -139,7 +140,7 @@ pub fn show_error_message(title: &str, message: &str) {
 fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWND)> {
     let window = WindowBuilder::new()
         .with_title(title.to_owned())
-        .with_visible(false)
+        .with_inner_size(Size::Logical(LogicalSize{width:1.0,height:1.0}))
         .build(&event_loop)?;
     let my_hwnd = {
         let id = window.id();
@@ -268,7 +269,7 @@ pub fn init(options: &OverlayOptions) -> Result<System> {
     let event_loop = EventLoopBuilder::new()
         .with_any_thread(true)
         .build()
-        .expect("时间循环构建失败");
+        .expect("事件循环构建失败");
     let (window, hwnd) = create_window(&event_loop, &options.title)?;
 
     let vulkan_context = VulkanContext::new(&window, &options.title)?;
