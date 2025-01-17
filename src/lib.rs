@@ -2,7 +2,6 @@ use std::{
     ffi::CString,
     time::Instant,
 };
-use std::ops::Add;
 use std::time::Duration;
 
 use ash::vk;
@@ -28,7 +27,6 @@ use imgui_winit_support::{
             WindowEvent,
         },
         event_loop::{
-            ControlFlow,
             EventLoop,
         },
         platform::windows::WindowExtWindows,
@@ -39,9 +37,8 @@ use imgui_winit_support::{
     },
     WinitPlatform,
 };
-use imgui_winit_support::winit::event_loop::{EventLoopBuilder, EventLoopWindowTarget};
+use imgui_winit_support::winit::event_loop::{EventLoopBuilder};
 use imgui_winit_support::winit::platform::windows::EventLoopBuilderExtWindows;
-use log::{debug, info};
 use obfstr::obfstr;
 use windows::{
     core::PCSTR,
@@ -94,9 +91,6 @@ use windows::{
 #[cfg(feature = "windows")]
 pub use windows;
 use winit::dpi::{LogicalSize, Size};
-
-#[cfg(feature = "windows_service")]
-pub use windows_service;
 
 use clipboard::ClipboardSupport;
 pub use error::*;
@@ -508,7 +502,7 @@ impl System {
                             }
                         }
 
-                        let ui = runtime_controller.imgui.frame();
+                        let ui = runtime_controller.imgui.new_frame();
                         let run = render(ui);
                         if !run {
                             control_flow.exit();

@@ -3,7 +3,6 @@ use imgui::{
     MouseButton,
 };
 use imgui_winit_support::winit::{
-    platform::windows::WindowExtWindows,
     window::Window
 };
 use windows::Win32::{

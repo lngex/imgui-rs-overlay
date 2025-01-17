@@ -1,7 +1,3 @@
-use imgui_winit_support::winit::{
-    platform::windows::WindowExtWindows,
-    window::Window,
-};
 use windows::{
     core::PCWSTR,
     Win32::{
