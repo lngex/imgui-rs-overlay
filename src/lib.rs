@@ -88,7 +88,7 @@ use windows::{
         },
     },
 };
-#[cfg(feature = "windows")]
+#[cfg(any(feature = "windows", feature = "windows_service", feature = "windows_wdk"))]
 pub use windows;
 use winit::dpi::{LogicalSize, Size};
 
@@ -100,7 +100,7 @@ use input::{
 };
 pub use perf::PerfTracker;
 use vulkan_render::*;
-pub use window_tracker::{OverlayTarget,WINDOWS_RECT};
+pub use window_tracker::{OverlayTarget, WINDOWS_RECT};
 use window_tracker::WindowTracker;
 
 mod clipboard;
@@ -134,7 +134,7 @@ pub fn show_error_message(title: &str, message: &str) {
 fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWND)> {
     let window = WindowBuilder::new()
         .with_title(title.to_owned())
-        .with_inner_size(Size::Logical(LogicalSize{width:1.0,height:1.0}))
+        .with_inner_size(Size::Logical(LogicalSize { width: 1.0, height: 1.0 }))
         .build(&event_loop)?;
     let my_hwnd = {
         let id = window.id();
