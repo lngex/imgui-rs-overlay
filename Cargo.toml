@@ -39,4 +39,12 @@ windows = ["windows/Win32_System_Diagnostics",
 windows_service= [
     "windows/Win32_System",
     "windows/Win32_System_Services"]
+
+windows_wdk=[
+    "windows/Wdk_Foundation",
+    "windows/Win32_Security",
+    "windows/Win32_System_WindowsProgramming",
+    "windows/Wdk_System_IO",
+    "windows/Wdk_System_Threading",
+    "windows/Wdk_System_SystemServices"]
 imgui = []
