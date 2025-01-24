@@ -10,7 +10,6 @@ use ash::{
     ext::debug_utils,
     Instance,
     khr::{
-        surface as Surface,
         swapchain as SwapchainLoader,
     },
     vk,

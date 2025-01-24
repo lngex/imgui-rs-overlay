@@ -29,7 +29,6 @@ use imgui_winit_support::{
         event_loop::{
             EventLoop,
         },
-        platform::windows::WindowExtWindows,
         window::{
             Window,
             WindowBuilder,
@@ -133,6 +132,7 @@ pub fn show_error_message(title: &str, message: &str) {
 
 fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWND)> {
     let window = WindowBuilder::new()
+        .with_visible(true)
         .with_title(title.to_owned())
         .with_inner_size(Size::Logical(LogicalSize { width: 1.0, height: 1.0 }))
         .build(&event_loop)?;
@@ -188,7 +188,7 @@ fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWN
 pub struct OverlayOptions {
     pub title: String,
     pub target: OverlayTarget,
-    /// 帧率(近似值与实际有差别)
+    /// 帧率,超过1000帧率限制将失效(近似值与实际有差别)
     pub fps: i32,
     pub font_init: Option<Box<dyn Fn(&mut imgui::Context) -> ()>>,
 }
