@@ -427,7 +427,6 @@ impl System {
         let target_frame_time = Duration::from_millis(fps_time_interval as u64);
         let mut last_time = Instant::now();
         let mut perf = PerfTracker::new(PERF_RECORDS);
-        let duration = Duration::from_secs(0);
         event_loop.run(move |event, control_flow| {
             platform.handle_event(runtime_controller.imgui.io_mut(), &window, &event);
             match event {
@@ -451,7 +450,7 @@ impl System {
                     // 计算还需要延迟多久才能达到目标帧时间
                     let remaining_time = target_frame_time.saturating_sub(frame_time);
                     // 如果这一帧耗时少于目标帧时间，则延迟剩余的时间
-                    if remaining_time > duration {
+                    if remaining_time.as_secs_f64() > 0.0 {
                         std::thread::sleep(remaining_time);
                     }
                     // 更新上次记录的时间点
