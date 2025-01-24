@@ -57,7 +57,7 @@ impl OverlayTarget {
                 FindWindowW(
                     PCWSTR::null(),
                     PCWSTR::from_raw(util::to_wide_chars(title).as_ptr()),
-                ).unwrap()
+                ).expect("窗口句柄获取失败")
             },
             Self::WindowOfProcess(process_id) => {
                 const MAX_ITERATIONS: usize = 1_000_000;
