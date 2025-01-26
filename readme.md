@@ -1,5 +1,4 @@
-### 核心代码来自[Valthrun](https://github.com/Valthrun/Valthrun)
-***
+
 ## 示例
 
 Cargo.toml
@@ -11,40 +10,38 @@ log = "0.4.22"
 ```
 main.rs
 ```
+use imgui::{Condition, FontConfig, FontGlyphRanges, FontSource};
+use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 
-use imgui_rs_overlay::imgui::{
-    FontConfig,
-    FontGlyphRanges,
-    FontSource,
-};
-use imgui_rs_overlay::{imgui, OverlayTarget};
+use imgui_rs_overlay::{OverlayTarget, WINDOWS_RECT};
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     env_logger::builder()
         .filter_level(log::LevelFilter::Trace)
         .parse_default_env()
         .init();
     log::info!("Initialize overlay");
-    let handle = std::thread::spawn(|| {
+    std::thread::spawn(|| {
+        // 获取要贴附的窗口句柄 这里获取桌面
+        let hwnd = unsafe { GetDesktopWindow() };
         let overlay = imgui_rs_overlay::init(&imgui_rs_overlay::OverlayOptions {
-            title: "Task Manager Overlay".to_string(),
-            target: OverlayTarget::WindowTitle("计算器".into()),
+            title: "Imgui overlay".to_string(),
+            target: OverlayTarget::Window(hwnd),
+            // 帧率
             fps: 60,
-            // 自定义字体
             font_init: Some(Box::new(|imgui| {
+                // 设置主题
+                imgui.style_mut().use_classic_colors();
+                // 设置圆角
+                imgui.style_mut().window_rounding = 12.0;
+                // 设置字体
                 imgui.fonts().clear();
                 imgui.fonts().add_font(&[FontSource::TtfData {
-                    data: include_bytes!(r"C:\Windows\Fonts\monbaiti.ttf"),
-                    size_pixels: 15.0,
+                    data: include_bytes!(r"C:\Windows\Fonts\simhei.ttf"),
+                    size_pixels: 12.0,
                     config: Some(FontConfig {
                         glyph_ranges: FontGlyphRanges::chinese_full(),
-                        // As imgui-glium-renderer isn't gamma-correct with
-                        // it's font rendering, we apply an arbitrary
-                        // multiplier to make the font a bit "heavier". With
-                        // default imgui-glow-renderer this is unnecessary.
                         rasterizer_multiply: 1.5,
-                        // Oversampling font helps improve text rendering at
-                        // expense of larger font atlas texture.
                         oversample_h: 4,
                         oversample_v: 4,
                         ..FontConfig::default()
@@ -52,37 +49,27 @@ fn main() -> anyhow::Result<()> {
                 }]);
             })),
         }).unwrap();
-        let mut text_input = Default::default();
         overlay.main_loop(
             |controller| {
-                controller.toggle_debug_overlay(true);
+                // 动态配置样式
+                // controller.imgui.style_mut().use_classic_colors();
                 true
             },
             move |ui| {
-                ui.window("Dummy Window")
-                    .resizable(true)
+                ui.window("样本")
+                    .resizable(false)
+                    .size([150.0, 100.0], Condition::FirstUseEver)
+                    .position([(unsafe { WINDOWS_RECT.width } / 2) as f32, (unsafe { WINDOWS_RECT.high } / 2) as f32], Condition::FirstUseEver)
                     .movable(true)
                     .build(|| {
-                        ui.text("Taskmanager Overlay!");
                         ui.text(format!("FPS: {:.2}", ui.io().framerate));
-                        ui.input_text("Test-Input", &mut text_input).build();
-
-                        ui.text("Привет, мир!");
-                        ui.text("Chào thế giới!");
-                        ui.text("Chào thế giới!");
-                        ui.text("ສະ​ບາຍ​ດີ​ຊາວ​ໂລກ!");
-                        ui.text("Салом Ҷаҳон!");
-                        ui.text("こんにちは世界!");
                         ui.text("你好世界!");
                     });
                 true
             },
         );
-    });
-    let _ = handle.join();
-    Ok(())
+    }).join().expect("绘制异常");
 }
-
 ```
 
 
