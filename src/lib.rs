@@ -26,9 +26,7 @@ use imgui_winit_support::{
             Event,
             WindowEvent,
         },
-        event_loop::{
-            EventLoop,
-        },
+        event_loop::EventLoop,
         window::{
             Window,
             WindowBuilder,
@@ -36,7 +34,7 @@ use imgui_winit_support::{
     },
     WinitPlatform,
 };
-use imgui_winit_support::winit::event_loop::{EventLoopBuilder};
+use imgui_winit_support::winit::event_loop::EventLoopBuilder;
 use imgui_winit_support::winit::platform::windows::EventLoopBuilderExtWindows;
 use obfstr::obfstr;
 use windows::{
@@ -81,8 +79,7 @@ use windows::{
                 WS_EX_NOACTIVATE,
                 WS_EX_TOOLWINDOW,
                 WS_EX_TRANSPARENT,
-                WS_POPUP,
-                WS_VISIBLE,
+                WS_POPUP
             },
         },
     },
@@ -134,7 +131,7 @@ fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWN
     let window = WindowBuilder::new()
         .with_visible(true)
         .with_title(title.to_owned())
-        .with_inner_size(Size::Logical(LogicalSize { width: 1.0, height: 1.0 }))
+        .with_inner_size(Size::Logical(LogicalSize { width: 5.0, height: 5.0 }))
         .build(&event_loop)?;
     let my_hwnd = {
         let id = window.id();
@@ -154,7 +151,7 @@ fn create_window(event_loop: &EventLoop<()>, title: &str) -> Result<(Window, HWN
             SetWindowLongA(
                 hwnd,
                 GWL_STYLE,
-                (WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS).0 as i32,
+                (WS_POPUP | WS_CLIPSIBLINGS).0 as i32,
             );
             SetWindowLongPtrA(
                 hwnd,
@@ -190,7 +187,7 @@ pub struct OverlayOptions {
     pub target: OverlayTarget,
     /// 帧率,超过1000帧率限制将失效(近似值与实际有差别)
     pub fps: i32,
-    pub font_init: Option<Box<dyn Fn(&mut imgui::Context) -> ()>>,
+    pub font_init: Option<Box<dyn Fn(&mut Context) -> ()>>,
 }
 
 fn create_imgui_context(options: &OverlayOptions) -> Result<(WinitPlatform, imgui::Context)> {
@@ -426,13 +423,13 @@ impl System {
         let mut dirty_swapchain = false;
         let target_frame_time = Duration::from_millis(fps_time_interval as u64);
         let mut last_time = Instant::now();
-        let mut perf = PerfTracker::new(PERF_RECORDS);
+        let mut _perf = PerfTracker::new(PERF_RECORDS);
         event_loop.run(move |event, control_flow| {
             platform.handle_event(runtime_controller.imgui.io_mut(), &window, &event);
             match event {
                 // New frame
                 Event::NewEvents(_) => {
-                    perf.begin();
+                    // perf.begin();
                     let now = Instant::now();
                     runtime_controller
                         .imgui
@@ -465,7 +462,7 @@ impl System {
                     event: WindowEvent::RedrawRequested,
                     ..
                 } => {
-                    perf.mark("events cleared");
+                    // perf.mark("events cleared");
                     /* Update */
                     {
                         if !runtime_controller.update_state(&window, hwnd) {
@@ -478,7 +475,7 @@ impl System {
                             control_flow.exit();
                             return;
                         }
-                        perf.mark("update");
+                        // perf.mark("update");
                     }
 
                     /* render */
@@ -505,34 +502,34 @@ impl System {
                             control_flow.exit();
                             return;
                         }
-                        if runtime_controller.debug_overlay_shown {
-                            ui.window("Render Debug")
-                                .position([200.0, 200.0], imgui::Condition::FirstUseEver)
-                                .size([400.0, 400.0], imgui::Condition::FirstUseEver)
-                                .build(|| {
-                                    ui.text(format!("FPS: {: >4.2}", ui.io().framerate));
-                                    ui.same_line_with_pos(100.0);
-
-                                    ui.text(format!(
-                                        "Frame Time: {:.2}ms",
-                                        ui.io().delta_time * 1000.0
-                                    ));
-                                    ui.same_line_with_pos(275.0);
-
-                                    ui.text("History length:");
-                                    ui.same_line();
-                                    let mut history_length = perf.history_length();
-                                    ui.set_next_item_width(75.0);
-                                    if ui
-                                        .input_scalar("##history_length", &mut history_length)
-                                        .build()
-                                    {
-                                        perf.set_history_length(history_length);
-                                    }
-                                    perf.render(ui, ui.content_region_avail());
-                                });
-                        }
-                        perf.mark("render frame");
+                        // if runtime_controller.debug_overlay_shown {
+                        //     ui.window("Render Debug")
+                        //         .position([200.0, 200.0], imgui::Condition::FirstUseEver)
+                        //         .size([400.0, 400.0], imgui::Condition::FirstUseEver)
+                        //         .build(|| {
+                        //             ui.text(format!("FPS: {: >4.2}", ui.io().framerate));
+                        //             ui.same_line_with_pos(100.0);
+                        //
+                        //             ui.text(format!(
+                        //                 "Frame Time: {:.2}ms",
+                        //                 ui.io().delta_time * 1000.0
+                        //             ));
+                        //             ui.same_line_with_pos(275.0);
+                        //
+                        //             ui.text("History length:");
+                        //             ui.same_line();
+                        //             let mut history_length = perf.history_length();
+                        //             ui.set_next_item_width(75.0);
+                        //             if ui
+                        //                 .input_scalar("##history_length", &mut history_length)
+                        //                 .build()
+                        //             {
+                        //                 perf.set_history_length(history_length);
+                        //             }
+                        //             perf.render(ui, ui.content_region_avail());
+                        //         });
+                        // }
+                        // perf.mark("render frame");
                         let draw_data = runtime_controller.imgui.render();
 
                         unsafe {
@@ -542,7 +539,7 @@ impl System {
                                 .expect("Failed to wait ")
                         };
 
-                        perf.mark("fence");
+                        // perf.mark("fence");
                         let next_image_result = unsafe {
                             swapchain.loader.acquire_next_image(
                                 swapchain.khr,
@@ -593,14 +590,14 @@ impl System {
                             .command_buffers(&command_buffers)
                             .signal_semaphores(&signal_semaphores)];
 
-                        perf.mark("before submit");
+                        // perf.mark("before submit");
                         unsafe {
                             vulkan_context
                                 .device
                                 .queue_submit(vulkan_context.graphics_queue, &submit_info, fence)
                                 .expect("Failed to submit work to gpu.")
                         };
-                        perf.mark("after submit");
+                        // perf.mark("after submit");
 
                         let swapchains = [swapchain.khr];
                         let images_indices = [image_index];
@@ -624,7 +621,7 @@ impl System {
                             Err(error) => panic!("Failed to present queue. Cause: {}", error),
                             _ => {}
                         }
-                        perf.finish("present");
+                        // perf.finish("present");
 
                         runtime_controller.frame_rendered();
                     }
