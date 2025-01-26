@@ -12,14 +12,12 @@ fn main() -> anyhow::Result<()> {
         .parse_default_env()
         .init();
     log::info!("Initialize overlay");
-    w!()
     let handle = std::thread::spawn(|| {
         let overlay = imgui_rs_overlay::init(&imgui_rs_overlay::OverlayOptions {
             title: "Task Manager Overlay".to_string(),
             target: OverlayTarget::WindowTitle("计算器".into()),
             fps: 60,
             font_init: Some(Box::new(|imgui| {
-                // imgui.fonts().add_font(font_sources)
                 // imgui.fonts().add_font(&[FontSource::TtfData {
                 //     data: include_bytes!("../resources/unifont-15.1.03.otf"),
                 //     size_pixels: 16.0,
@@ -44,7 +42,6 @@ fn main() -> anyhow::Result<()> {
                         ui.text("Taskmanager Overlay!");
                         ui.text(format!("FPS: {:.2}", ui.io().framerate));
                         ui.input_text("Test-Input", &mut text_input).build();
-
                         ui.text("Привет, мир!");
                         ui.text("Chào thế giới!");
                         ui.text("Chào thế giới!");
