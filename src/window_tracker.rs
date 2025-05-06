@@ -1,3 +1,4 @@
+
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -29,7 +30,6 @@ use windows::{
 
 use crate::{
     error::{
-        OverlayError,
         Result,
     },
     util,
@@ -116,30 +116,18 @@ impl OverlayTarget {
 /// Track the window and adjust overlay accordingly.
 /// This is only required when playing in windowed mode.
 pub struct WindowTracker {
-    hwnd: HWND,
-    current_bounds: RECT,
+    pub hwnd: HWND,
+    pub current_bounds: RECT,
 }
 
 impl WindowTracker {
-    pub fn new(target: &OverlayTarget) -> Result<Self> {
-        let hwnd = target.resolve_target_window()?;
-        if hwnd.0 as i32 == 0 {
-            return Err(OverlayError::WindowNotFound);
-        }
-
-        Ok(Self {
-            hwnd: hwnd,
-            current_bounds: Default::default(),
-        })
-    }
-
     pub fn mark_force_update(&mut self) {
         self.current_bounds = Default::default();
     }
 
     pub fn update(&mut self, hwnd: HWND) -> bool {
         let mut rect: RECT = Default::default();
-        let success = unsafe { GetClientRect(self.hwnd, &mut rect) };
+        let success = unsafe { GetClientRect(hwnd, &mut rect) };
         if !success.is_ok() {
             let error = unsafe { GetLastError() };
             if error == ERROR_INVALID_WINDOW_HANDLE {
@@ -151,11 +139,11 @@ impl WindowTracker {
         }
 
         unsafe {
-            let _ = ClientToScreen(self.hwnd, &mut rect.left as *mut _ as *mut POINT);
-            let _ = ClientToScreen(self.hwnd, &mut rect.right as *mut _ as *mut POINT);
+            let _ = ClientToScreen(hwnd, &mut rect.left as *mut _ as *mut POINT);
+            let _ = ClientToScreen(hwnd, &mut rect.right as *mut _ as *mut POINT);
         }
 
-        if unsafe { GetFocus() } != self.hwnd {
+        if unsafe { GetFocus() } != hwnd {
             rect.bottom -= 1;
         }
 
@@ -172,16 +160,15 @@ impl WindowTracker {
         }
         unsafe {
             let _ = MoveWindow(
-                hwnd,
+                self.hwnd,
                 rect.left,
                 rect.top,
                 width,
                 high,
                 false, // Don't do a complete repaint (may flicker)
             );
-
             // Request repaint, so we acknoledge the new bounds
-            SendMessageA(hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
+            SendMessageA(self.hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
         }
 
         true
