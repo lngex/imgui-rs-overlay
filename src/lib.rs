@@ -3,10 +3,10 @@ use imgui::{Context, FontConfig, FontGlyphRanges, FontSource, Io};
 #[cfg(feature = "imgui")]
 pub use imgui;
 
-use imgui_winit_support::winit::platform::windows::EventLoopBuilderExtWindows;
+
 use obfstr::obfstr;
 use windows::{
-    core::PCSTR,
+
     Win32::{
         Foundation::HWND,
         UI::{
@@ -14,41 +14,37 @@ use windows::{
             WindowsAndMessaging::{
                 GetWindowLongPtrA,
                 GWL_EXSTYLE,
-                GWL_STYLE,
-                HWND_TOPMOST,
-                MB_ICONERROR,
-                MB_OK,
-                MessageBoxA,
+
+
+
                 SetWindowDisplayAffinity,
-                SetWindowLongA,
+
                 SetWindowLongPtrA,
-                SetWindowPos,
+
                 ShowWindow,
                 SW_SHOWNOACTIVATE,
-                SWP_NOACTIVATE,
-                SWP_NOMOVE,
-                SWP_NOSIZE,
+
                 WDA_EXCLUDEFROMCAPTURE,
                 WDA_NONE,
-                WS_CLIPSIBLINGS,
-                WS_EX_LAYERED,
+
+
                 WS_EX_NOACTIVATE,
-                WS_EX_TOOLWINDOW,
+
                 WS_EX_TRANSPARENT,
-                WS_POPUP,
+
             },
         },
     },
 };
 #[cfg(any(feature = "windows", feature = "windows_service", feature = "windows_wdk"))]
 pub use windows;
-use windows::Win32::Foundation::COLORREF;
-use windows::Win32::UI::Controls::MARGINS;
-use windows::Win32::UI::WindowsAndMessaging::{GetDesktopWindow, LWA_ALPHA, SetLayeredWindowAttributes};
-use winit::application::ApplicationHandler;
-use winit::dpi::{LogicalSize, Size};
 
-use winit::window::{WindowAttributes};
+
+use windows::Win32::UI::WindowsAndMessaging::{GetDesktopWindow};
+
+
+
+
 
 
 pub use error::*;
@@ -155,7 +151,7 @@ impl OverlayActiveTracker {
 }
 
 
-pub struct SystemRuntimeController {
+struct SystemRuntimeController {
     pub hwnd: HWND,
     pub imgui: Context,
     debug_overlay_shown: bool,

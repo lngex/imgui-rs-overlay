@@ -12,7 +12,7 @@ thiserror = "2.0.12"
 imgui = "0.12.0"
 imgui-winit-support = { version = "0.13.0" }
 copypasta = "0.10.1"
-windows = { version = "0.58.0", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Controls", "Win32_UI_Input_KeyboardAndMouse", "Win32", "Win32_UI", "Win32_Graphics_Dwm"] }
+windows = { version = "0.61.1", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Controls", "Win32_UI_Input_KeyboardAndMouse", "Win32", "Win32_UI", "Win32_Graphics_Dwm"] }
 obfstr = "0.4.3"
 imgui-rs-vulkan-renderer = "1.16.0"
 ash = { version = "0.38", default-features = false, features = ["debug", "loaded"] }

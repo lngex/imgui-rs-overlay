@@ -15,6 +15,7 @@ use ash::{
     vk,
 };
 use ash::khr::{surface, swapchain};
+
 use imgui::DrawData;
 use imgui_rs_vulkan_renderer::Renderer;
 use imgui_winit_support::winit::window::Window;
@@ -205,7 +206,7 @@ fn create_vulkan_instance(
     entry: &Entry,
     window: &Window,
     title: &str,
-) -> crate::Result<(Instance, debug_utils::Instance, vk::DebugUtilsMessengerEXT)> {
+) -> Result<(Instance, debug_utils::Instance, vk::DebugUtilsMessengerEXT)> {
     log::debug!("Creating vulkan instance");
     // Vulkan instance
     let app_name = CString::new(title)?;
@@ -407,14 +408,14 @@ fn create_vulkan_swapchain(
         };
         if formats.len() == 1 && formats[0].format == vk::Format::UNDEFINED {
             vk::SurfaceFormatKHR {
-                format: vk::Format::B8G8R8A8_UNORM,
+                format: vk::Format::R8G8B8A8_UNORM,
                 color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
             }
         } else {
             *formats
                 .iter()
                 .find(|format| {
-                    format.format == vk::Format::B8G8R8A8_UNORM
+                    format.format == vk::Format::R8G8B8A8_UNORM
                         && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
                 })
                 .unwrap_or(&formats[0])
@@ -492,7 +493,7 @@ fn create_vulkan_swapchain(
 
         builder
             .pre_transform(capabilities.current_transform)
-            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+            .composite_alpha(vk::CompositeAlphaFlagsKHR::PRE_MULTIPLIED)
             .present_mode(present_mode)
             .clipped(true)
     };

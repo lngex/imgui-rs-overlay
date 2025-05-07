@@ -294,7 +294,7 @@ mod texture {
                     .address_mode_w(vk::SamplerAddressMode::REPEAT)
                     .anisotropy_enable(false)
                     .max_anisotropy(1.0)
-                    .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
+                    .border_color(vk::BorderColor::INT_TRANSPARENT_BLACK)
                     .unnormalized_coordinates(false)
                     .compare_enable(false)
                     .compare_op(vk::CompareOp::ALWAYS)

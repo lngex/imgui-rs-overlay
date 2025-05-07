@@ -5,7 +5,7 @@ use imgui::{Context, FontConfig, FontSource, Style, Ui};
 use imgui_rs_vulkan_renderer::Renderer;
 use imgui_winit_support::WinitPlatform;
 
-use crate::app::app::WindowApp;
+use crate::app::window_app::WindowApp;
 use crate::clipboard::ClipboardSupport;
 use crate::{OverlayOptions, SystemRuntimeController};
 use crate::error::Result;
@@ -25,7 +25,7 @@ struct ImguiWindowInfo {
     pub runtime_controller: SystemRuntimeController,
 }
 
-pub mod app {
+pub mod window_app {
     use std::intrinsics::transmute;
     use std::time::{Duration, Instant};
     use ash::vk;
@@ -128,7 +128,7 @@ pub mod app {
                     // Move the window to the top
                     let _ = SetWindowPos(
                         hwnd,
-                        HWND_TOPMOST,
+                        Some(HWND_TOPMOST),
                         0,
                         0,
                         0,
@@ -180,6 +180,7 @@ pub mod app {
             if let Some(func) = &self.style_config {
                 func(&mut imgui);
             }
+            self.style_config = None;
             let renderer = Renderer::with_default_allocator(
                 &vulkan_context.instance,
                 vulkan_context.physical_device,

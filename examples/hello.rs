@@ -1,21 +1,33 @@
+use std::borrow::Cow;
+
 use imgui::{Condition, Style, Ui};
 use winit::event_loop::EventLoopBuilder;
 
-
-use imgui_rs_overlay::{OverlayTarget, app::app, OverlayOptions};
+use imgui_rs_overlay::{app::window_app, OverlayOptions, OverlayTarget};
 
 fn main() {
     env_logger::builder()
         .filter_level(log::LevelFilter::Trace)
         .parse_default_env()
         .init();
-    log::info!("Initialize overlay");
-    let func = move |ui: &mut Ui, _style: &mut Style| {
+    let mut index = 2usize;
+    let items = ["深色", "高亮", "经典"];
+    let func = move |ui: &mut Ui, style: &mut Style| {
         ui.window("imgui")
             .resizable(false)
             .size([150.0, 100.0], Condition::FirstUseEver)
             .movable(true)
             .build(|| {
+                if ui.combo("主题", &mut index, &items, |item| {
+                    Cow::Owned(String::from(*item))
+                }) {
+                    match index {
+                        0 => { style.use_dark_colors() }
+                        1 => { style.use_light_colors() }
+                        2 => { style.use_classic_colors() }
+                        _ => { style }
+                    };
+                }
                 ui.text(format!("FPS: {:.2}", ui.io().framerate));
                 ui.text("你好世界!");
             });
@@ -23,10 +35,10 @@ fn main() {
     };
     let mut options = OverlayOptions {
         target: OverlayTarget::WindowTitle(String::from("计算器")),
-        fps: 60,
+        fps:60,
         ..OverlayOptions::default()
     };
     let event_loop = EventLoopBuilder::default().build().unwrap();
-    let mut windows_app = app::WindowApp::new(func, &mut options);
+    let mut windows_app = window_app::WindowApp::new(func, &mut options);
     event_loop.run_app(&mut windows_app).unwrap();
 }

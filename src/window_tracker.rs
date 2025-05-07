@@ -57,7 +57,7 @@ impl OverlayTarget {
                 FindWindowW(
                     PCWSTR::null(),
                     PCWSTR::from_raw(util::to_wide_chars(title).as_ptr()),
-                ).expect("窗口句柄获取失败")
+                ).expect(format!("窗口({})句柄获取失败",title).as_str())
             },
             Self::WindowOfProcess(process_id) => {
                 const MAX_ITERATIONS: usize = 1_000_000;
@@ -65,12 +65,10 @@ impl OverlayTarget {
                 let mut current_hwnd = HWND::default();
                 while iterations < MAX_ITERATIONS {
                     iterations += 1;
-
-                    current_hwnd = unsafe { FindWindowExA(None, current_hwnd, None, None).unwrap() };
+                    current_hwnd = unsafe { FindWindowExA(None, Some(current_hwnd), None, None).unwrap() };
                     if current_hwnd.0 as i32 == 0 {
                         break;
                     }
-
                     let mut window_process_id = 0;
                     let success = unsafe {
                         GetWindowThreadProcessId(current_hwnd, Some(&mut window_process_id)) != 0
