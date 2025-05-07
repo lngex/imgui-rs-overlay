@@ -4,7 +4,7 @@
 
 Cargo.toml
 ```toml
-imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay",default-features = false,features = ["imgui","windows"],branch = "vulkan_1.14"}
+imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay",default-features = false,features = ["windows"],branch = "vulkan_1.14"}
 anyhow = "1.0.89"
 env_logger = "0.11.5"
 log = "0.4.22"
@@ -13,10 +13,9 @@ main.rs
 ```rust
 use std::borrow::Cow;
 
-use imgui::{Condition, Style, Ui};
-use winit::event_loop::EventLoopBuilder;
-
 use imgui_rs_overlay::{app::window_app, OverlayOptions, OverlayTarget};
+use imgui_rs_overlay::imgui::{Condition, Style, Ui};
+use imgui_rs_overlay::winit::event_loop::EventLoopBuilder;
 
 fn main() {
     env_logger::builder()
@@ -48,7 +47,7 @@ fn main() {
     };
     let mut options = OverlayOptions {
         target: OverlayTarget::WindowTitle(String::from("计算器")),
-        fps:60,
+        fps: 60,
         ..OverlayOptions::default()
     };
     let event_loop = EventLoopBuilder::default().build().unwrap();
