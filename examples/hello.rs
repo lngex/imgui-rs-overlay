@@ -35,7 +35,7 @@ fn main() {
     };
     let mut options = OverlayOptions {
         target: OverlayTarget::WindowTitle(String::from("计算器")),
-        fps:60,
+        fps: 60,
         ..OverlayOptions::default()
     };
     let event_loop = EventLoopBuilder::default().build().unwrap();

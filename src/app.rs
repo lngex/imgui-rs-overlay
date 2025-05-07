@@ -1,13 +1,15 @@
+use std::fs;
 use std::time::{Duration, Instant};
+
 use ash::vk;
 use copypasta::ClipboardContext;
 use imgui::{Context, FontConfig, FontSource, Style, Ui};
 use imgui_rs_vulkan_renderer::Renderer;
 use imgui_winit_support::WinitPlatform;
 
+use crate::{OverlayOptions, SystemRuntimeController};
 use crate::app::window_app::WindowApp;
 use crate::clipboard::ClipboardSupport;
-use crate::{OverlayOptions, SystemRuntimeController};
 use crate::error::Result;
 use crate::vulkan_render::{Swapchain, VulkanContext};
 
@@ -28,10 +30,11 @@ struct ImguiWindowInfo {
 pub mod window_app {
     use std::intrinsics::transmute;
     use std::time::{Duration, Instant};
+
     use ash::vk;
     use imgui::{Context, Style, Ui};
     use imgui_rs_vulkan_renderer::{Options, Renderer};
-    use imgui_winit_support::{HiDpiMode};
+    use imgui_winit_support::HiDpiMode;
     use windows::Win32::Foundation::{COLORREF, HWND};
     use windows::Win32::UI::Controls::MARGINS;
     use windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST, LWA_ALPHA, SetLayeredWindowAttributes, SetWindowLongA, SetWindowLongPtrA, SetWindowPos, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, WS_CLIPSIBLINGS, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP};
@@ -41,12 +44,12 @@ pub mod window_app {
     use winit::event_loop::ActiveEventLoop;
     use winit::platform::windows::{Color, WindowAttributesExtWindows};
     use winit::window::{WindowAttributes, WindowId};
-    use crate::app::{create_imgui_context, ImguiWindowInfo};
+
     use crate::{OverlayActiveTracker, SystemRuntimeController};
+    use crate::app::{create_imgui_context, ImguiWindowInfo};
     use crate::input::{KeyboardInputSystem, MouseInputSystem};
     use crate::vulkan_render::{record_command_buffers, Swapchain, VulkanContext};
     use crate::window_tracker::WindowTracker;
-
 
     /// ### Prepare a parameter structure and rendering function first
     /// #### Parameter structure
@@ -411,22 +414,24 @@ fn create_imgui_context() -> Result<(WinitPlatform, Context)> {
     // on two different screens, and thus we do not need to scale this
     // value (as the scaling is handled by winit)
     let font_size = 18.0;
-    imgui.fonts().add_font(&[FontSource::TtfData {
-        data: include_bytes!("../resources/HPSimplified_Bd.ttf"),
-        size_pixels: font_size,
-        config: Some(FontConfig {
-            glyph_ranges: imgui::FontGlyphRanges::chinese_full(),
-            // As imgui-glium-renderer isn't gamma-correct with
-            // it's font rendering, we apply an arbitrary
-            // multiplier to make the font a bit "heavier". With
-            // default imgui-glow-renderer this is unnecessary.
-            rasterizer_multiply: 1.5,
-            // Oversampling font helps improve text rendering at
-            // expense of larger font atlas texture.
-            oversample_h: 4,
-            oversample_v: 4,
-            ..FontConfig::default()
-        }),
-    }]);
+    if let Ok(vec) = fs::read(r"C:\Windows\Fonts\monbaiti.ttf") {
+        imgui.fonts().add_font(&[FontSource::TtfData {
+            data: vec.as_slice(),
+            size_pixels: font_size,
+            config: Some(FontConfig {
+                glyph_ranges: imgui::FontGlyphRanges::chinese_full(),
+                // As imgui-glium-renderer isn't gamma-correct with
+                // it's font rendering, we apply an arbitrary
+                // multiplier to make the font a bit "heavier". With
+                // default imgui-glow-renderer this is unnecessary.
+                rasterizer_multiply: 1.5,
+                // Oversampling font helps improve text rendering at
+                // expense of larger font atlas texture.
+                oversample_h: 4,
+                oversample_v: 4,
+                ..FontConfig::default()
+            }),
+        }]);
+    }
     Ok((platform, imgui))
 }

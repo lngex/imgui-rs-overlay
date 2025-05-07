@@ -15,7 +15,7 @@ copypasta = "0.10.1"
 windows = { version = "0.61.1", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Controls", "Win32_UI_Input_KeyboardAndMouse", "Win32", "Win32_UI", "Win32_Graphics_Dwm"] }
 obfstr = "0.4.3"
 imgui-rs-vulkan-renderer = "1.16.0"
-ash = { version = "0.38", default-features = false, features = ["debug", "loaded"] }
+ash = { version = "0.38", default-features = false, features = ["loaded"] }
 ash-window = "0.13.0"
 nalgebra = "0.33.0"
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
@@ -30,11 +30,11 @@ windows = ["windows/Win32_System_Diagnostics",
     "windows/Win32_System",
     "windows/Win32_System_ProcessStatus"]
 
-windows_service= [
+windows_service = [
     "windows/Win32_System",
     "windows/Win32_System_Services"]
 
-windows_wdk=[
+windows_wdk = [
     "windows/Wdk_Foundation",
     "windows/Win32_Security",
     "windows/Win32_System_WindowsProgramming",
