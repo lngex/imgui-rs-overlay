@@ -1,8 +1,8 @@
 
 use imgui::{Context, FontConfig, FontGlyphRanges, FontSource, Io};
-#[cfg(feature = "imgui")]
-pub use imgui;
 
+pub use imgui;
+pub use winit;
 
 use obfstr::obfstr;
 use windows::{
