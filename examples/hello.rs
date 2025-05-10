@@ -3,7 +3,7 @@ use imgui::Condition;
 use std::borrow::Cow;
 use imgui_rs_overlay::window::{Windows, WindowsOptions};
 
-fn main() ->windows::core::Result<()>{
+fn main() ->imgui_rs_overlay::Result<()>{
     let mut index = 2usize;
     let items = ["深色", "高亮", "经典"];
     let mut app = Windows::new(&WindowsOptions::default())?;
