@@ -1,17 +1,19 @@
 # imgui-rs-overlay
-
+依赖[imgui-rs](https://github.com/imgui-rs/imgui-rs)与[windows-rs](https://github.com/microsoft/windows-rs)
+## 平台
+仅支持windows
 # 版本
 * [imgui-rs-0.12-DirectX11(👈当前)](https://github.com/lngex/imgui-rs-overlay/tree/master)
 * [imgui-rs-0.12_vulkan-1.16](https://github.com/lngex/imgui-rs-overlay/tree/vulkan_1.14)
 ## 示例
 
 Cargo.toml
-```
+```toml
 imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay"}
 imgui = "0.12.0"
 ```
 main.rs
-```
+```rust
 use imgui::Condition;
 use std::borrow::Cow;
 use imgui_rs_overlay::{Result, window::{Windows, WindowsOptions}};
