@@ -6,12 +6,13 @@ use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 
 
+use crate::d3d11::D3d11Render;
 use crate::window_tracker::{OverlayTarget, WindowTracker};
 use imgui::{ConfigFlags, Context, DrawData, FontConfig, FontGlyphRanges, FontSource, Style, Ui};
 use lazy_static::lazy_static;
 use windows::Win32::Foundation::{COLORREF, HINSTANCE, LPARAM, LRESULT, POINT, TRUE, WPARAM};
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
-use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
+use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
 use windows::Win32::Graphics::Dxgi::{DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG};
 use windows::Win32::Graphics::Gdi::{CreateSolidBrush, ScreenToClient, UpdateWindow, ValidateRect};
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
@@ -21,7 +22,6 @@ use windows::{
     , Win32::Foundation::HWND
     , Win32::UI::WindowsAndMessaging::*,
 };
-use crate::d3d11::D3d11Render;
 
 lazy_static! {
     static ref GLOBAL_DATA: Mutex<Option<D3d11Render >> = Mutex::new(None);
@@ -198,6 +198,8 @@ impl Windows {
             imgui_context.style_mut().window_rounding = 5.0;
             imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_KEYBOARD;
             imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_GAMEPAD;
+            imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_SET_MOUSE_POS;
+            imgui_context.set_ini_filename(None);
             if let Some(func) = &options.style_init {
                 func(&mut imgui_context)
             }
@@ -341,7 +343,7 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
                     let mut guard = GLOBAL_DATA.lock().unwrap();
                     if let Some(ref mut renderer) = *guard {
                         renderer.cleanup_render_target();
-                        let _ = renderer.p_swap_chain.ResizeBuffers(0, loword!(lparam.0 as u32), hiword!(lparam.0 as u32), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG(0));
+                        let _ = renderer.p_swap_chain.ResizeBuffers(0, loword!(lparam.0 as u32), hiword!(lparam.0 as u32), DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SWAP_CHAIN_FLAG(0));
                         let _ = renderer.create_render_target();
                         return LRESULT(0);
                     }
@@ -364,5 +366,23 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
             }
             _ => DefWindowProcA(window, message, wparam, lparam),
         }
+    }
+}
+
+extern "C" {
+   pub fn GetAsyncKeyState(key: i32) -> u16;
+}
+/// 是否按下按键
+#[macro_export]
+macro_rules! key_down {
+    ($key:expr)=>{
+        unsafe{GetAsyncKeyState($key) == 32769u16}
+    }
+}
+/// 是否长按按键
+#[macro_export]
+macro_rules! w_key_down {
+    ($key:expr)=>{
+        unsafe{GetAsyncKeyState($key) > 0u16}
     }
 }

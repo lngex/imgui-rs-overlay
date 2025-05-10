@@ -1,13 +1,12 @@
-
 use imgui::Condition;
-use std::borrow::Cow;
 use imgui_rs_overlay::window::{Windows, WindowsOptions};
+use std::borrow::Cow;
 
-fn main() ->imgui_rs_overlay::Result<()>{
+fn main() -> imgui_rs_overlay::Result<()> {
     let mut index = 2usize;
     let items = ["深色", "高亮", "经典"];
     let mut app = Windows::new(&WindowsOptions::default())?;
-    app.run(move|ui,style|{
+    app.run(move |ui, style| {
         ui.window("imgui")
             .resizable(false)
             .size([150.0, 100.0], Condition::FirstUseEver)
@@ -29,5 +28,4 @@ fn main() ->imgui_rs_overlay::Result<()>{
         true
     })?;
     Ok(())
-
 }
