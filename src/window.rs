@@ -376,13 +376,13 @@ extern "C" {
 #[macro_export]
 macro_rules! key_down {
     ($key:expr)=>{
-        unsafe{GetAsyncKeyState($key) == 32769u16}
+        unsafe{imgui_rs_overlay::window::GetAsyncKeyState($key) == 32769u16}
     }
 }
 /// 是否长按按键
 #[macro_export]
 macro_rules! w_key_down {
     ($key:expr)=>{
-        unsafe{GetAsyncKeyState($key) > 0u16}
+        unsafe{imgui_rs_overlay::window::GetAsyncKeyState($key) > 0u16}
     }
 }
