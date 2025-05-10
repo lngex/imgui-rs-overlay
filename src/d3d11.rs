@@ -10,16 +10,16 @@ use windows::{core::Result, Win32::Foundation::{HWND, TRUE}, Win32::Graphics::Dx
     DXGI_USAGE_RENDER_TARGET_OUTPUT,
 }};
 
-pub struct D3d11Renderer {
+pub struct D3d11Render {
     pub p_swap_chain: IDXGISwapChain,
     pub pd3d_device: ID3D11Device,
     pub pd3d_device_context: ID3D11DeviceContext,
     pub p_main_render_target_view: Option<ID3D11RenderTargetView>,
 }
 
-impl D3d11Renderer {
+impl D3d11Render {
     /// 绑定到窗口
-    pub fn bind(hwnd: HWND) -> Result<D3d11Renderer> {
+    pub fn bind(hwnd: HWND) -> Result<D3d11Render> {
         let sd = DXGI_SWAP_CHAIN_DESC {
             BufferCount: 2,
             BufferDesc: DXGI_MODE_DESC {
@@ -73,7 +73,7 @@ impl D3d11Renderer {
                 pd3d_device.CreateRenderTargetView(&result, None, Some(p_main_render_target_view.as_mut_ptr()))?;
                 p_main_render_target_view.assume_init().unwrap()
             };
-        Ok(D3d11Renderer {
+        Ok(D3d11Render {
             p_swap_chain: p_swap_chain,
             pd3d_device: pd3d_device,
             pd3d_device_context: pd3d_device_context,

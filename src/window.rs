@@ -21,10 +21,10 @@ use windows::{
     , Win32::Foundation::HWND
     , Win32::UI::WindowsAndMessaging::*,
 };
-use crate::d3d11::D3d11Renderer;
+use crate::d3d11::D3d11Render;
 
 lazy_static! {
-    static ref GLOBAL_DATA: Mutex<Option<D3d11Renderer>> = Mutex::new(None);
+    static ref GLOBAL_DATA: Mutex<Option<D3d11Render >> = Mutex::new(None);
 }
 
 #[macro_export]
@@ -183,7 +183,7 @@ impl Windows {
                 None,
             )?;
 
-            let result = D3d11Renderer::bind(hwnd);
+            let result = D3d11Render::bind(hwnd);
             if result.is_err() {
                 UnregisterClassW(wc.lpszClassName, Some(wc.hInstance))?;
                 return Err(result.err().unwrap());
