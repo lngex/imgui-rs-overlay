@@ -1,8 +1,8 @@
 # imgui-rs-overlay
 
 # 版本
-* [imgui-rs-0.12-DirectX11(当前)](https://github.com/lngex/imgui-rs-overlay/tree/master)
-* [imgui-rs-0.12_vulkan-1.16(最新)](https://github.com/lngex/imgui-rs-overlay/tree/vulkan_1.14)
+* [imgui-rs-0.12-DirectX11(👈当前)](https://github.com/lngex/imgui-rs-overlay/tree/master)
+* [imgui-rs-0.12_vulkan-1.16](https://github.com/lngex/imgui-rs-overlay/tree/vulkan_1.14)
 ## 示例
 
 Cargo.toml
