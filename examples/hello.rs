@@ -1,6 +1,7 @@
 use imgui::Condition;
 use imgui_rs_overlay::window::{Windows, WindowsOptions};
 use std::borrow::Cow;
+use imgui_rs_overlay::key_down;
 
 fn main() -> imgui_rs_overlay::Result<()> {
     let mut index = 2usize;
@@ -25,7 +26,7 @@ fn main() -> imgui_rs_overlay::Result<()> {
                 ui.text(format!("FPS: {:.2}", ui.io().framerate));
                 ui.text("你好世界!");
             });
-        true
+        !key_down!(35)
     })?;
     Ok(())
 }
