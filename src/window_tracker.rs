@@ -1,13 +1,10 @@
-use imgui_winit_support::winit::{
-    platform::windows::WindowExtWindows,
-    window::Window,
-};
+
 use windows::{
-    core::PCWSTR,
+    core::{PCWSTR,Result},
     Win32::{
         Foundation::{
-            GetLastError,
             ERROR_INVALID_WINDOW_HANDLE,
+            GetLastError,
             HWND,
             LPARAM,
             POINT,
@@ -31,13 +28,15 @@ use windows::{
     },
 };
 
-use crate::{
-    error::{
-        OverlayError,
-        Result,
-    },
-    util,
-};
+use windows::core::{w, HSTRING};
+
+/// 附加的窗口宽高(该属性只允许读，不允许写)
+pub static mut WINDOWS_RECT: Rect = Rect { width: 0, high: 0 };
+
+pub struct Rect {
+    pub width: i32,
+    pub high: i32,
+}
 
 pub enum OverlayTarget {
     Window(HWND),
@@ -52,8 +51,8 @@ impl OverlayTarget {
             Self::WindowTitle(title) => unsafe {
                 FindWindowW(
                     PCWSTR::null(),
-                    PCWSTR::from_raw(util::to_wide_chars(title).as_ptr()),
-                ).unwrap()
+                    PCWSTR::from_raw(HSTRING::from(title).as_ptr()),
+                ).expect(format!("窗口({})句柄获取失败",title).as_str())
             },
             Self::WindowOfProcess(process_id) => {
                 const MAX_ITERATIONS: usize = 1_000_000;
@@ -61,12 +60,10 @@ impl OverlayTarget {
                 let mut current_hwnd = HWND::default();
                 while iterations < MAX_ITERATIONS {
                     iterations += 1;
-
-                    current_hwnd = unsafe { FindWindowExA(None, current_hwnd, None, None).unwrap() };
+                    current_hwnd = unsafe { FindWindowExA(None, Some(current_hwnd), None, None).unwrap() };
                     if current_hwnd.0 as i32 == 0 {
                         break;
                     }
-
                     let mut window_process_id = 0;
                     let success = unsafe {
                         GetWindowThreadProcessId(current_hwnd, Some(&mut window_process_id)) != 0
@@ -112,28 +109,12 @@ impl OverlayTarget {
 /// Track the window and adjust overlay accordingly.
 /// This is only required when playing in windowed mode.
 pub struct WindowTracker {
-    hwnd: HWND,
-    current_bounds: RECT,
+    pub hwnd: HWND,
+    pub current_bounds: RECT,
 }
 
 impl WindowTracker {
-    pub fn new(target: &OverlayTarget) -> Result<Self> {
-        let hwnd = target.resolve_target_window()?;
-        if hwnd.0 as i32 == 0 {
-            return Err(OverlayError::WindowNotFound);
-        }
-
-        Ok(Self {
-            hwnd: hwnd,
-            current_bounds: Default::default(),
-        })
-    }
-
-    pub fn mark_force_update(&mut self) {
-        self.current_bounds = Default::default();
-    }
-
-    pub fn update(&mut self, overlay: &Window) -> bool {
+    pub fn update(&mut self, hwnd: HWND) -> bool {
         let mut rect: RECT = Default::default();
         let success = unsafe { GetClientRect(self.hwnd, &mut rect) };
         if !success.is_ok() {
@@ -152,10 +133,6 @@ impl WindowTracker {
         }
 
         if unsafe { GetFocus() } != self.hwnd {
-            /*
-             * CS2 will render a black screen as soon as CS2 does not have the focus and is completely covered by
-             * another window. To prevent the overlay covering CS2 we make it one pixel less then the actual CS2 window.
-             */
             rect.bottom -= 1;
         }
 
@@ -164,22 +141,24 @@ impl WindowTracker {
         }
 
         self.current_bounds = rect;
-        log::debug!("Window bounds changed: {:?}", rect);
+        let width = rect.right - rect.left;
+        let high = rect.bottom - rect.top+1;
         unsafe {
-            let overlay_hwnd = HWND(overlay.hwnd() as _);
+            WINDOWS_RECT.width = width;
+            WINDOWS_RECT.high = high;
+        }
+        unsafe {
             let _ = MoveWindow(
-                overlay_hwnd,
+                hwnd,
                 rect.left,
                 rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
+                width,
+                high,
                 false, // Don't do a complete repaint (may flicker)
             );
-
             // Request repaint, so we acknoledge the new bounds
-            SendMessageA(overlay_hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
+            SendMessageA(hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
         }
-
         true
     }
 }
