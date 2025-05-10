@@ -1,91 +1,49 @@
-# imgui-rs-over
-Original git [Valthrun](https://github.com/Valthrun/Valthrun)
+# imgui-rs-overlay
+
 # 版本
-* [imgui-rs-0.11_vulkan-1.12(当前)](https://github.com/lngex/imgui-rs-overlay/tree/master)
+* [imgui-rs-0.12-DirectX11(当前)](https://github.com/lngex/imgui-rs-overlay/tree/master)
 * [imgui-rs-0.12_vulkan-1.16(最新)](https://github.com/lngex/imgui-rs-overlay/tree/vulkan_1.14)
 ## 示例
 
 Cargo.toml
 ```
 imgui-rs-overlay={git = "https://github.com/lngex/imgui-rs-overlay"}
-anyhow = "1.0.89"
-env_logger = "0.11.5"
-log = "0.4.22"
+imgui = "0.12.0"
 ```
 main.rs
 ```
+use imgui::Condition;
+use std::borrow::Cow;
+use imgui_rs_overlay::{Result, window::{Windows, WindowsOptions}};
 
-use imgui_rs_overlay::imgui::{
-    FontConfig,
-    FontGlyphRanges,
-    FontSource,
-};
-use imgui_rs_overlay::{imgui, OverlayTarget};
 
-fn main() -> anyhow::Result<()> {
-    env_logger::builder()
-        .filter_level(log::LevelFilter::Trace)
-        .parse_default_env()
-        .init();
-    log::info!("Initialize overlay");
-    let handle = std::thread::spawn(|| {
-        let overlay = imgui_rs_overlay::init(&imgui_rs_overlay::OverlayOptions {
-            title: "Task Manager Overlay".to_string(),
-            target: OverlayTarget::WindowTitle("计算器".into()),
-            fps: 60,
-            // 自定义字体
-            font_init: Some(Box::new(|imgui| {
-                imgui.fonts().clear();
-                imgui.fonts().add_font(&[FontSource::TtfData {
-                    data: include_bytes!(r"C:\Windows\Fonts\monbaiti.ttf"),
-                    size_pixels: 15.0,
-                    config: Some(FontConfig {
-                        glyph_ranges: FontGlyphRanges::chinese_full(),
-                        // As imgui-glium-renderer isn't gamma-correct with
-                        // it's font rendering, we apply an arbitrary
-                        // multiplier to make the font a bit "heavier". With
-                        // default imgui-glow-renderer this is unnecessary.
-                        rasterizer_multiply: 1.5,
-                        // Oversampling font helps improve text rendering at
-                        // expense of larger font atlas texture.
-                        oversample_h: 4,
-                        oversample_v: 4,
-                        ..FontConfig::default()
-                    }),
-                }]);
-            })),
-        }).unwrap();
-        let mut text_input = Default::default();
-        overlay.main_loop(
-            |controller| {
-                controller.toggle_debug_overlay(true);
-                true
-            },
-            move |ui| {
-                ui.window("Dummy Window")
-                    .resizable(true)
-                    .movable(true)
-                    .build(|| {
-                        ui.text("Taskmanager Overlay!");
-                        ui.text(format!("FPS: {:.2}", ui.io().framerate));
-                        ui.input_text("Test-Input", &mut text_input).build();
-
-                        ui.text("Привет, мир!");
-                        ui.text("Chào thế giới!");
-                        ui.text("Chào thế giới!");
-                        ui.text("ສະ​ບາຍ​ດີ​ຊາວ​ໂລກ!");
-                        ui.text("Салом Ҷаҳон!");
-                        ui.text("こんにちは世界!");
-                        ui.text("你好世界!");
-                    });
-                true
-            },
-        );
-    });
-    let _ = handle.join();
+fn main() -> Result<()> {
+    let mut index = 2usize;
+    let items = ["深色", "高亮", "经典"];
+    let mut app = Windows::new(&WindowsOptions::default())?;
+    app.run(move |ui, style| {
+        ui.window("imgui")
+            .resizable(false)
+            .size([150.0, 100.0], Condition::FirstUseEver)
+            .movable(true)
+            .build(|| {
+                if ui.combo("主题", &mut index, &items, |item| {
+                    Cow::Owned(String::from(*item))
+                }) {
+                    match index {
+                        0 => { style.use_dark_colors() }
+                        1 => { style.use_light_colors() }
+                        2 => { style.use_classic_colors() }
+                        _ => { style }
+                    };
+                }
+                ui.text(format!("FPS: {:.2}", ui.io().framerate));
+                ui.text("你好世界!");
+            });
+        true
+    })?;
     Ok(())
 }
-
 ```
 
 
