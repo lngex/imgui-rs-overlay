@@ -283,7 +283,7 @@ impl Windows {
             }
         }
         unsafe {
-            UnregisterClassW(self.wc.lpszClassName, Some(self.wc.hInstance))?;
+           let _ = UnregisterClassW(self.wc.lpszClassName, Some(self.wc.hInstance));
         }
         Ok(())
     }
