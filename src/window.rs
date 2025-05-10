@@ -172,7 +172,7 @@ impl Windows {
                 WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
                 window_class,
                 window_class,
-                WS_POPUP,
+                WS_POPUP | WS_CLIPSIBLINGS,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
                 1920,
