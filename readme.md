@@ -1,4 +1,8 @@
-
+## 平台
+仅支持windows
+# 版本
+* [imgui-rs-0.12-DirectX11](https://github.com/lngex/imgui-rs-overlay/tree/master)
+* [imgui-rs-0.12_vulkan-1.16(👈当前)](https://github.com/lngex/imgui-rs-overlay/tree/vulkan_1.14)
 ## 示例
 ![1746586140704.png](1746586140704.png)
 
@@ -55,6 +59,8 @@ fn main() {
     event_loop.run_app(&mut windows_app).unwrap();
 }
 ```
+## bug
+使用独立显卡进行绘制时背景窗口无法透明
 
 
 
