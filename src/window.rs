@@ -69,12 +69,14 @@ extern "C" {
 }
 
 pub struct FrameRate(u32);
+
 impl FrameRate {
     /// 屏幕同步
     pub const SYNC_SCREEN: FrameRate = FrameRate(1);
     /// 无限制
     pub const UN_LIMITED: FrameRate = FrameRate(0);
 }
+
 pub struct WindowsOptions {
     /// imgui绘制窗口
     pub title: String,
@@ -124,6 +126,7 @@ impl Default for WindowsOptions {
         }
     }
 }
+
 impl WindowsOptions {
     /// 通过窗口创建
     pub fn new(target: OverlayTarget) -> WindowsOptions {
@@ -228,14 +231,14 @@ impl Windows {
     /// 进入循环
     /// [render] 渲染函数
     pub fn run<R>(&mut self, mut render: R) -> Result<()>
-    where
-        R: FnMut(&mut Ui,&mut Style) -> bool + 'static,
+        where
+            R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
     {
         let mut exit = false;
-        let style = unsafe{
+        let style = unsafe {
             &mut *(self.imgui.style_mut() as *mut Style)
         };
-        while !exit {
+        loop {
             let mut message = MSG::default();
             while unsafe { PeekMessageA(&mut message, None, 0, 0, PM_REMOVE) } == TRUE {
                 unsafe {
@@ -246,6 +249,9 @@ impl Windows {
                         break;
                     }
                 };
+            }
+            if exit {
+                break;
             }
             self.window_tracker.update(self.hwnd);
             unsafe {
@@ -258,7 +264,7 @@ impl Windows {
             {
                 let frame = self.imgui.new_frame();
 
-               exit =  !render(frame,style)
+                exit = !render(frame, style)
             }
             let mut guard = GLOBAL_DATA.lock().unwrap();
             if let Some(ref mut renderer) = *guard {
@@ -283,7 +289,7 @@ impl Windows {
             }
         }
         unsafe {
-           let _ = UnregisterClassW(self.wc.lpszClassName, Some(self.wc.hInstance));
+            let _ = UnregisterClassW(self.wc.lpszClassName, Some(self.wc.hInstance));
         }
         Ok(())
     }
@@ -370,7 +376,7 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
 }
 
 extern "C" {
-   pub fn GetAsyncKeyState(key: i32) -> u16;
+    pub fn GetAsyncKeyState(key: i32) -> u16;
 }
 /// 是否按下按键
 #[macro_export]
