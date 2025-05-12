@@ -1,12 +1,18 @@
-use imgui::Condition;
-use imgui_rs_overlay::window::{Windows, WindowsOptions};
 use std::borrow::Cow;
-use imgui_rs_overlay::key_down;
+
+use imgui::Condition;
+
+use imgui_rs_overlay::{key_down, OverlayTarget};
+use imgui_rs_overlay::window::{FrameRate, Windows, WindowsOptions};
 
 fn main() -> imgui_rs_overlay::Result<()> {
     let mut index = 2usize;
     let items = ["深色", "高亮", "经典"];
-    let mut app = Windows::new(&WindowsOptions::default())?;
+    let mut app = Windows::new(&WindowsOptions {
+        frame_rate: FrameRate::UN_LIMITED,
+        overlay_target:OverlayTarget::WindowTitle(String::from("计算器")),
+        ..WindowsOptions::default()
+    })?;
     app.run(move |ui, style| {
         ui.window("imgui")
             .resizable(false)

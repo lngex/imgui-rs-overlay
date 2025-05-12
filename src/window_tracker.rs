@@ -28,7 +28,7 @@ use windows::{
     },
 };
 
-use windows::core::{w, HSTRING};
+use windows::core::HSTRING;
 
 /// 附加的窗口宽高(该属性只允许读，不允许写)
 pub static mut WINDOWS_RECT: Rect = Rect { width: 0, high: 0 };

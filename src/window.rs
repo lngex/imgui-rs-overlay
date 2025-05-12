@@ -1,8 +1,8 @@
-use std::ffi::OsStr;
+
 use std::fs;
-use std::ops::Deref;
+
 use std::os::raw::c_void;
-use std::os::windows::ffi::OsStrExt;
+
 use std::sync::Mutex;
 
 
@@ -178,8 +178,8 @@ impl Windows {
                 WS_POPUP | WS_CLIPSIBLINGS,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
-                1920,
-                1080,
+                300,
+                200,
                 None,
                 None,
                 Some(wc.hInstance),
@@ -250,10 +250,13 @@ impl Windows {
                     }
                 };
             }
+            if !self.window_tracker.update(self.hwnd) {
+                exit = true;
+            }
             if exit {
                 break;
             }
-            self.window_tracker.update(self.hwnd);
+
             unsafe {
                 ImGui_ImplDX11_NewFrame();
                 ImGui_ImplWin32_NewFrame();
