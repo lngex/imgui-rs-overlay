@@ -345,7 +345,7 @@ impl Windows {
     #[cfg(feature = "lib")]
     fn free(&self) {
         let ptr = self.hinstance.0 as usize;
-        thread::spawn(|| unsafe {
+        thread::spawn(move|| unsafe {
             if let Err(e) = windows::Win32::System::Console::FreeConsole() {
                 log::error!("{e:?}");
             }
