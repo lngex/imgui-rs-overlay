@@ -344,11 +344,12 @@ impl Windows {
     /// 释放
     #[cfg(feature = "lib")]
     fn free(&self) {
+        let ptr = self.hinstance.0 as usize;
         thread::spawn(|| unsafe {
             if let Err(e) = windows::Win32::System::Console::FreeConsole() {
                 log::error!("{e:?}");
             }
-            FreeLibraryAndExitThread(HMODULE(self.hinstance.0), 0);
+            FreeLibraryAndExitThread(HMODULE(ptr as _), 0);
         });
     }
 
