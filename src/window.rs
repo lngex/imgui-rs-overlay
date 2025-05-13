@@ -1,5 +1,4 @@
-
-use std::fs;
+use std::{fs, thread};
 
 use std::os::raw::c_void;
 
@@ -10,12 +9,12 @@ use crate::d3d11::D3d11Render;
 use crate::window_tracker::{OverlayTarget, WindowTracker};
 use imgui::{ConfigFlags, Context, DrawData, FontConfig, FontGlyphRanges, FontSource, Style, Ui};
 use lazy_static::lazy_static;
-use windows::Win32::Foundation::{COLORREF, HINSTANCE, LPARAM, LRESULT, POINT, TRUE, WPARAM};
+use windows::Win32::Foundation::{COLORREF, HINSTANCE, HMODULE, LPARAM, LRESULT, POINT, TRUE, WPARAM};
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
 use windows::Win32::Graphics::Dxgi::{DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG};
 use windows::Win32::Graphics::Gdi::{CreateSolidBrush, ScreenToClient, UpdateWindow, ValidateRect};
-use windows::Win32::System::LibraryLoader::GetModuleHandleA;
+use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleHandleA};
 use windows::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow;
 use windows::{
     core::*
@@ -84,6 +83,7 @@ pub struct WindowsOptions {
     pub overlay_target: OverlayTarget,
     /// 帧率
     pub frame_rate: FrameRate,
+    pub dll_hinstance: usize,
     /// 初始化样式
     pub style_init: Option<Box<dyn Fn(&mut Context) -> ()>>,
 }
@@ -123,6 +123,7 @@ impl Default for WindowsOptions {
             }),
             frame_rate: FrameRate(1),
             style_init,
+            dll_hinstance: 0,
         }
     }
 }
@@ -144,7 +145,7 @@ pub struct Windows {
     imgui: Context,
     window_is_active: bool,
     sync_interval: u32,
-
+    hinstance: HINSTANCE,
 }
 
 impl Windows {
@@ -155,7 +156,11 @@ impl Windows {
             ImGui_ImplWin32_EnableDpiAwareness();
             let vec = PCWSTR(HSTRING::from(&options.title).as_ptr());
             let window_class = PCWSTR::from_raw(vec.as_ptr());
-            let hinstance = GetModuleHandleA(None)?;
+            let hinstance = if options.dll_hinstance > 0 {
+                HMODULE(options.dll_hinstance as _)
+            } else {
+                GetModuleHandleA(None)?
+            };
             let wc = WNDCLASSEXW {
                 cbSize: size_of::<WNDCLASSEXW>() as u32,
                 hCursor: LoadCursorW(None, IDC_ARROW)?,
@@ -224,6 +229,7 @@ impl Windows {
                 imgui: imgui_context,
                 window_is_active: true,
                 sync_interval: options.frame_rate.0,
+                hinstance: HINSTANCE(options.dll_hinstance as _),
             })
         }
     }
@@ -231,8 +237,8 @@ impl Windows {
     /// 进入循环
     /// [render] 渲染函数
     pub fn run<R>(&mut self, mut render: R) -> Result<()>
-        where
-            R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
+    where
+        R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
     {
         let mut exit = false;
         let style = unsafe {
@@ -294,6 +300,7 @@ impl Windows {
         unsafe {
             let _ = UnregisterClassW(self.wc.lpszClassName, Some(self.wc.hInstance));
         }
+        self.free();
         Ok(())
     }
 
@@ -333,6 +340,21 @@ impl Windows {
             Ok(())
         }
     }
+
+    /// 释放
+    #[cfg(feature = "lib")]
+    fn free(&self) {
+        thread::spawn(|| unsafe {
+            if let Err(e) = windows::Win32::System::Console::FreeConsole() {
+                log::error!("{e:?}");
+            }
+            FreeLibraryAndExitThread(HMODULE(self.hinstance.0), 0);
+        });
+    }
+
+    /// 释放
+    #[cfg(not(feature = "lib"))]
+    fn free(&self) {}
 }
 
 
