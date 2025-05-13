@@ -400,9 +400,19 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
         }
     }
 }
-
+#[cfg(feature = "lib")]
 extern "C" {
     pub fn GetAsyncKeyState(key: i32) -> u16;
+    pub fn GetCurrentProcessId() -> u32;
+}
+#[cfg(not(feature = "lib"))]
+pub unsafe fn GetAsyncKeyState(key: i32) ->u16{
+    windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(key)
+}
+
+#[cfg(not(feature = "lib"))]
+pub unsafe fn GetCurrentProcessId() -> u32{
+    windows::Win32::System::Threading::GetCurrentProcessId()
 }
 /// 是否按下按键
 #[macro_export]
