@@ -138,7 +138,7 @@ impl WindowsOptions {
 }
 
 pub struct Windows {
-    hwnd: HWND,
+    pub hwnd: HWND,
     window_tracker: WindowTracker,
     wc: WNDCLASSEXW,
     imgui: Context,
