@@ -407,7 +407,7 @@ extern "C" {
 }
 #[cfg(not(feature = "lib"))]
 pub unsafe fn GetAsyncKeyState(key: i32) ->u16{
-    windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(key)
+    windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(key) as _
 }
 
 #[cfg(not(feature = "lib"))]
