@@ -400,17 +400,17 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
         }
     }
 }
-#[cfg(feature = "lib")]
+#[cfg(not(feature = "lib"))]
 extern "C" {
     pub fn GetAsyncKeyState(key: i32) -> u16;
     pub fn GetCurrentProcessId() -> u32;
 }
-#[cfg(not(feature = "lib"))]
+#[cfg(feature = "lib")]
 pub unsafe fn GetAsyncKeyState(key: i32) ->u16{
     windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(key) as _
 }
 
-#[cfg(not(feature = "lib"))]
+#[cfg(feature = "lib")]
 pub unsafe fn GetCurrentProcessId() -> u32{
     windows::Win32::System::Threading::GetCurrentProcessId()
 }
