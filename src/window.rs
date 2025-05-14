@@ -237,8 +237,8 @@ impl Windows {
     /// 进入循环
     /// [render] 渲染函数
     pub fn run<R>(&mut self, mut render: R) -> Result<()>
-    where
-        R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
+        where
+            R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
     {
         let mut exit = false;
         let style = unsafe {
@@ -345,10 +345,11 @@ impl Windows {
     #[cfg(feature = "lib")]
     fn free(&self) {
         let ptr = self.hinstance.0 as usize;
-        thread::spawn(move|| unsafe {
+        thread::spawn(move || unsafe {
             if let Err(e) = windows::Win32::System::Console::FreeConsole() {
                 log::error!("{e:?}");
             }
+            *GLOBAL_DATA.lock().unwrap() = None;
             FreeLibraryAndExitThread(HMODULE(ptr as _), 0);
         });
     }
@@ -400,18 +401,20 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
         }
     }
 }
+
 #[cfg(not(feature = "lib"))]
 extern "C" {
     pub fn GetAsyncKeyState(key: i32) -> u16;
     pub fn GetCurrentProcessId() -> u32;
 }
+
 #[cfg(feature = "lib")]
-pub unsafe fn GetAsyncKeyState(key: i32) ->u16{
+pub unsafe fn GetAsyncKeyState(key: i32) -> u16 {
     windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(key) as _
 }
 
 #[cfg(feature = "lib")]
-pub unsafe fn GetCurrentProcessId() -> u32{
+pub unsafe fn GetCurrentProcessId() -> u32 {
     windows::Win32::System::Threading::GetCurrentProcessId()
 }
 /// 是否按下按键
