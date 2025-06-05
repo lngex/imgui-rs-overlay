@@ -1,1 +1,2 @@
 *.cpp linguist-language=rust
+*.h linguist-language=rust
