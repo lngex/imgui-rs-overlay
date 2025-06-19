@@ -1,4 +1,4 @@
-use std::{fs, thread};
+use std::{fs};
 
 use std::os::raw::c_void;
 
@@ -20,7 +20,9 @@ use windows::{
     core::*
     , Win32::Foundation::HWND
     , Win32::UI::WindowsAndMessaging::*,
+    Win32::System::Threading::CreateThread,
 };
+use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
 
 lazy_static! {
     static ref GLOBAL_DATA: Mutex<Option<D3d11Render >> = Mutex::new(None);
@@ -345,13 +347,7 @@ impl Windows {
     #[cfg(feature = "lib")]
     fn free(&self) {
         let ptr = self.hinstance.0 as usize;
-        thread::spawn(move || unsafe {
-            if let Err(e) = windows::Win32::System::Console::FreeConsole() {
-                log::error!("{e:?}");
-            }
-            *GLOBAL_DATA.lock().unwrap() = None;
-            FreeLibraryAndExitThread(HMODULE(ptr as _), 0);
-        });
+        let _ = unsafe { CreateThread(None, 0, Some(free_func), Some(ptr as _), THREAD_CREATION_FLAGS(0), None) };
     }
 
     /// 释放
@@ -359,6 +355,16 @@ impl Windows {
     fn free(&self) {}
 }
 
+#[cfg(feature = "lib")]
+unsafe extern "system" fn free_func(lpthreadparameter: *mut core::ffi::c_void) -> u32 {
+    {
+        if let Err(e) = windows::Win32::System::Console::FreeConsole() {
+            log::error!("{e:?}");
+        }
+        *GLOBAL_DATA.lock().unwrap() = None;
+        FreeLibraryAndExitThread(HMODULE(lpthreadparameter as _), 0);
+    }
+}
 
 extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe {
