@@ -1,53 +1,51 @@
-use std::{fs};
+use std::fs;
 
 use std::os::raw::c_void;
 
 use std::sync::Mutex;
 
-
 use crate::d3d11::D3d11Render;
 use crate::window_tracker::{OverlayTarget, WindowTracker};
 use imgui::{ConfigFlags, Context, DrawData, FontConfig, FontGlyphRanges, FontSource, Style, Ui};
 use lazy_static::lazy_static;
-use windows::Win32::Foundation::{COLORREF, HINSTANCE, HMODULE, LPARAM, LRESULT, POINT, TRUE, WPARAM};
+use windows::Win32::Foundation::{
+    COLORREF, HINSTANCE, HMODULE, LPARAM, LRESULT, POINT, TRUE, WPARAM,
+};
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
 use windows::Win32::Graphics::Dxgi::{DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG};
 use windows::Win32::Graphics::Gdi::{CreateSolidBrush, ScreenToClient, UpdateWindow, ValidateRect};
 use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleHandleA};
+use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow;
 use windows::{
-    core::*
-    , Win32::Foundation::HWND
-    , Win32::UI::WindowsAndMessaging::*,
-    Win32::System::Threading::CreateThread,
+    core::*, Win32::Foundation::HWND, Win32::System::Threading::CreateThread,
+    Win32::UI::WindowsAndMessaging::*,
 };
-use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
 
 lazy_static! {
-    static ref GLOBAL_DATA: Mutex<Option<D3d11Render >> = Mutex::new(None);
+    static ref GLOBAL_DATA: Mutex<Option<D3d11Render>> = Mutex::new(None);
 }
 
 #[macro_export]
 macro_rules! loword {
-    ($uint:expr)=>{
+    ($uint:expr) => {
         $uint & 0xFFFF
-    }
+    };
 }
 
 #[macro_export]
 macro_rules! hiword {
-    ($uint:expr)=>{
+    ($uint:expr) => {
         ($uint >> 16) & 0xFFFF
-    }
+    };
 }
 #[macro_export]
 macro_rules! rgb {
-    ($r:expr,$g:expr,$b:expr)=>{
+    ($r:expr,$g:expr,$b:expr) => {
         (($b as u32) << 16) | (($g as u32) << 8) | ($r as u32)
-    }
+    };
 }
-
 
 extern "C" {
     /// imgui初始化win32
@@ -55,7 +53,12 @@ extern "C" {
     /// 初始化dx11
     fn ImGui_ImplDX11_Init(device: *mut ID3D11Device, ctx: *mut ID3D11DeviceContext) -> bool;
     /// imgui循环事件处理
-    fn ImGui_ImplWin32_WndProcHandler(hwnd: *const c_void, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT;
+    fn ImGui_ImplWin32_WndProcHandler(
+        hwnd: *const c_void,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT;
 
     fn ImGui_ImplDX11_NewFrame();
     fn ImGui_ImplWin32_NewFrame();
@@ -120,9 +123,7 @@ impl Default for WindowsOptions {
         };
         WindowsOptions {
             title: String::from("lingex_imgui_overlay"),
-            overlay_target: OverlayTarget::Window(unsafe {
-                GetDesktopWindow()
-            }),
+            overlay_target: OverlayTarget::Window(unsafe { GetDesktopWindow() }),
             frame_rate: FrameRate(1),
             style_init,
             dll_hinstance: 0,
@@ -239,13 +240,11 @@ impl Windows {
     /// 进入循环
     /// [render] 渲染函数
     pub fn run<R>(&mut self, mut render: R) -> Result<()>
-        where
-            R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
+    where
+        R: FnMut(&mut Ui, &mut Style) -> bool + 'static,
     {
         let mut exit = false;
-        let style = unsafe {
-            &mut *(self.imgui.style_mut() as *mut Style)
-        };
+        let style = unsafe { &mut *(self.imgui.style_mut() as *mut Style) };
         loop {
             let mut message = MSG::default();
             while unsafe { PeekMessageA(&mut message, None, 0, 0, PM_REMOVE) } == TRUE {
@@ -258,7 +257,7 @@ impl Windows {
                     }
                 };
             }
-            if !self.window_tracker.update(self.hwnd) {
+            if !self.window_tracker.tracking(self.hwnd) {
                 exit = true;
             }
             if exit {
@@ -281,10 +280,16 @@ impl Windows {
             if let Some(ref mut renderer) = *guard {
                 unsafe {
                     let view = renderer.p_main_render_target_view.take().unwrap();
-                    renderer.pd3d_device_context.OMSetRenderTargets(Some(&[Some(view.clone())]), None);
-                    renderer.pd3d_device_context.ClearRenderTargetView(&view, &[0f32; 4]);
+                    renderer
+                        .pd3d_device_context
+                        .OMSetRenderTargets(Some(&[Some(view.clone())]), None);
+                    renderer
+                        .pd3d_device_context
+                        .ClearRenderTargetView(&view, &[0f32; 4]);
                     ImGui_ImplDX11_RenderDrawData(self.imgui.render());
-                    let _ = renderer.p_swap_chain.Present(self.sync_interval, DXGI_PRESENT(0));
+                    let _ = renderer
+                        .p_swap_chain
+                        .Present(self.sync_interval, DXGI_PRESENT(0));
                     renderer.p_main_render_target_view = Some(view);
                 }
             }
@@ -321,16 +326,24 @@ impl Windows {
                 io.add_mouse_pos_event([point.x as _, point.y as _]);
             }
             let imgui_active = io.want_capture_mouse;
-            if imgui_active != self.window_is_active
-            {
+            if imgui_active != self.window_is_active {
                 self.window_is_active = imgui_active;
                 if imgui_active {
                     unsafe {
-                        let _ = SetWindowLongA(self.hwnd, GWL_EXSTYLE, (WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW).0 as _);
+                        let _ = SetWindowLongA(
+                            self.hwnd,
+                            GWL_EXSTYLE,
+                            (WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW).0 as _,
+                        );
                     }
                 } else {
                     unsafe {
-                        let _ = SetWindowLongA(self.hwnd, GWL_EXSTYLE, (WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW).0 as _);
+                        let _ = SetWindowLongA(
+                            self.hwnd,
+                            GWL_EXSTYLE,
+                            (WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW).0
+                                as _,
+                        );
                     }
                 }
                 if imgui_active {
@@ -347,7 +360,16 @@ impl Windows {
     #[cfg(feature = "lib")]
     fn free(&self) {
         let ptr = self.hinstance.0 as usize;
-        let _ = unsafe { CreateThread(None, 0, Some(free_func), Some(ptr as _), THREAD_CREATION_FLAGS(0), None) };
+        let _ = unsafe {
+            CreateThread(
+                None,
+                0,
+                Some(free_func),
+                Some(ptr as _),
+                THREAD_CREATION_FLAGS(0),
+                None,
+            )
+        };
     }
 
     /// 释放
@@ -382,7 +404,13 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
                     let mut guard = GLOBAL_DATA.lock().unwrap();
                     if let Some(ref mut renderer) = *guard {
                         renderer.cleanup_render_target();
-                        let _ = renderer.p_swap_chain.ResizeBuffers(0, loword!(lparam.0 as u32), hiword!(lparam.0 as u32), DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SWAP_CHAIN_FLAG(0));
+                        let _ = renderer.p_swap_chain.ResizeBuffers(
+                            0,
+                            loword!(lparam.0 as u32),
+                            hiword!(lparam.0 as u32),
+                            DXGI_FORMAT_B8G8R8A8_UNORM,
+                            DXGI_SWAP_CHAIN_FLAG(0),
+                        );
                         let _ = renderer.create_render_target();
                         return LRESULT(0);
                     }
@@ -400,40 +428,41 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
                 PostQuitMessage(0);
                 LRESULT(0)
             }
-            WM_NCHITTEST => {
-                LRESULT(1)
-            }
+            WM_NCHITTEST => LRESULT(1),
             _ => DefWindowProcA(window, message, wparam, lparam),
         }
     }
 }
 
 #[cfg(not(feature = "lib"))]
+#[allow(non_snake_case)]
 extern "C" {
     pub fn GetAsyncKeyState(key: i32) -> u16;
     pub fn GetCurrentProcessId() -> u32;
 }
 
 #[cfg(feature = "lib")]
+#[allow(non_snake_case, clippy::missing_safety_doc)]
 pub unsafe fn GetAsyncKeyState(key: i32) -> u16 {
     windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(key) as _
 }
 
 #[cfg(feature = "lib")]
+#[allow(non_snake_case, clippy::missing_safety_doc)]
 pub unsafe fn GetCurrentProcessId() -> u32 {
     windows::Win32::System::Threading::GetCurrentProcessId()
 }
 /// 是否按下按键
 #[macro_export]
 macro_rules! key_down {
-    ($key:expr)=>{
-        unsafe{imgui_rs_overlay::window::GetAsyncKeyState($key) == 32769u16}
-    }
+    ($key:expr) => {
+        unsafe { imgui_rs_overlay::window::GetAsyncKeyState($key) == 32769u16 }
+    };
 }
 /// 是否长按按键
 #[macro_export]
 macro_rules! w_key_down {
-    ($key:expr)=>{
-        unsafe{imgui_rs_overlay::window::GetAsyncKeyState($key) > 0u16}
-    }
+    ($key:expr) => {
+        unsafe { imgui_rs_overlay::window::GetAsyncKeyState($key) > 0u16 }
+    };
 }

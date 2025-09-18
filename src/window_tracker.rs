@@ -1,28 +1,15 @@
-
 use windows::{
-    core::{PCWSTR,Result},
+    core::{Result, PCWSTR},
     Win32::{
         Foundation::{
-            ERROR_INVALID_WINDOW_HANDLE,
-            GetLastError,
-            HWND,
-            LPARAM,
-            POINT,
-            RECT,
-            WPARAM,
+            GetLastError, ERROR_INVALID_WINDOW_HANDLE, HWND, LPARAM, POINT, RECT, WPARAM,
         },
         Graphics::Gdi::ClientToScreen,
         UI::{
             Input::KeyboardAndMouse::GetFocus,
             WindowsAndMessaging::{
-                FindWindowExA,
-                FindWindowW,
-                GetClientRect,
-                GetWindowRect,
-                GetWindowThreadProcessId,
-                MoveWindow,
-                SendMessageA,
-                WM_PAINT,
+                FindWindowExA, FindWindowW, GetClientRect, GetWindowRect, GetWindowThreadProcessId,
+                IsWindow, MoveWindow, SendMessageA, SetWindowPos, WM_PAINT,
             },
         },
     },
@@ -52,7 +39,8 @@ impl OverlayTarget {
                 FindWindowW(
                     PCWSTR::null(),
                     PCWSTR::from_raw(HSTRING::from(title).as_ptr()),
-                ).expect(format!("窗口({})句柄获取失败",title).as_str())
+                )
+                .expect(format!("窗口({})句柄获取失败", title).as_str())
             },
             Self::WindowOfProcess(process_id) => {
                 const MAX_ITERATIONS: usize = 1_000_000;
@@ -60,7 +48,8 @@ impl OverlayTarget {
                 let mut current_hwnd = HWND::default();
                 while iterations < MAX_ITERATIONS {
                     iterations += 1;
-                    current_hwnd = unsafe { FindWindowExA(None, Some(current_hwnd), None, None).unwrap() };
+                    current_hwnd =
+                        unsafe { FindWindowExA(None, Some(current_hwnd), None, None).unwrap() };
                     if current_hwnd.0 as i32 == 0 {
                         break;
                     }
@@ -73,8 +62,7 @@ impl OverlayTarget {
                     }
 
                     let mut window_rect = RECT::default();
-                    let success =
-                        unsafe { GetWindowRect(current_hwnd, &mut window_rect) };
+                    let success = unsafe { GetWindowRect(current_hwnd, &mut window_rect) };
                     if !success.is_ok() {
                         continue;
                     }
@@ -114,15 +102,16 @@ pub struct WindowTracker {
 }
 
 impl WindowTracker {
+    /// 跟踪窗口
+    #[allow(dead_code)]
     pub fn update(&mut self, hwnd: HWND) -> bool {
         let mut rect: RECT = Default::default();
         let success = unsafe { GetClientRect(self.hwnd, &mut rect) };
-        if !success.is_ok() {
+        if success.is_err() {
             let error = unsafe { GetLastError() };
             if error == ERROR_INVALID_WINDOW_HANDLE {
                 return false;
             }
-
             log::warn!("GetClientRect failed for tracked window: {:?}", error);
             return true;
         }
@@ -142,22 +131,47 @@ impl WindowTracker {
 
         self.current_bounds = rect;
         let width = rect.right - rect.left;
-        let high = rect.bottom - rect.top+1;
+        let high = rect.bottom - rect.top + 1;
         unsafe {
             WINDOWS_RECT.width = width;
             WINDOWS_RECT.high = high;
         }
         unsafe {
             let _ = MoveWindow(
-                hwnd,
-                rect.left,
-                rect.top,
-                width,
-                high,
+                hwnd, rect.left, rect.top, width, high,
                 false, // Don't do a complete repaint (may flicker)
             );
             // Request repaint, so we acknoledge the new bounds
             SendMessageA(hwnd, WM_PAINT, WPARAM::default(), LPARAM::default());
+        }
+        true
+    }
+
+    /// 跟踪窗口，每调用一次会对目标窗口进行跟踪
+    #[allow(dead_code)]
+    pub fn tracking(&mut self, hwnd: HWND) -> bool {
+        let mut rect = RECT::default();
+        unsafe {
+            let _ = GetClientRect(self.hwnd, &mut rect);
+            let _ = ClientToScreen(self.hwnd, &mut rect.left as *mut _ as *mut POINT);
+        }
+        if !unsafe { IsWindow(Some(self.hwnd)).as_bool() } {
+            return false;
+        }
+        if self.current_bounds == rect {
+            return true;
+        }
+        self.current_bounds = rect;
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                rect.left,
+                rect.top,
+                rect.right,
+                rect.bottom,
+                windows::Win32::UI::WindowsAndMessaging::SWP_SHOWWINDOW,
+            );
         }
         true
     }
