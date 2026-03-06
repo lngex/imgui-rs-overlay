@@ -1,7 +1,5 @@
 use std::fs;
-
 use std::os::raw::c_void;
-
 use std::sync::Mutex;
 
 use crate::d3d11::D3d11Render;
@@ -14,14 +12,12 @@ use windows::Win32::Foundation::{
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
 use windows::Win32::Graphics::Dxgi::{DXGI_PRESENT, DXGI_SWAP_CHAIN_FLAG};
-use windows::Win32::Graphics::Gdi::{CreateSolidBrush, ScreenToClient, UpdateWindow, ValidateRect};
-use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleHandleA};
-use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
-use windows::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow;
-use windows::{
-    core::*, Win32::Foundation::HWND, Win32::System::Threading::CreateThread,
-    Win32::UI::WindowsAndMessaging::*,
+use windows::Win32::Graphics::Gdi::{
+    CreateSolidBrush, MonitorFromPoint, ScreenToClient, UpdateWindow, ValidateRect,
 };
+use windows::Win32::System::LibraryLoader::GetModuleHandleA;
+use windows::Win32::UI::Input::KeyboardAndMouse::SetActiveWindow;
+use windows::{core::*, Win32::Foundation::HWND, Win32::UI::WindowsAndMessaging::*};
 
 lazy_static! {
     static ref GLOBAL_DATA: Mutex<Option<D3d11Render>> = Mutex::new(None);
@@ -70,6 +66,7 @@ extern "C" {
     fn ImGui_ImplWin32_EnableDpiAwareness();
     /// 隐藏边框
     fn ImGui_ImplWin32_EnableAlphaCompositing(hwnd: *const c_void);
+    fn ImGui_ImplWin32_GetDpiScaleForMonitor(monitor: *const c_void) -> f32;
 }
 
 pub struct FrameRate(u32);
@@ -107,15 +104,14 @@ impl Default for WindowsOptions {
                 // 设置圆角
                 imgui.style_mut().window_rounding = 12.0;
                 // 设置字体
-                imgui.fonts().clear();
                 imgui.fonts().add_font(&[FontSource::TtfData {
                     data: &*vec,
                     size_pixels: 12.0,
+                    // config:None
                     config: Some(FontConfig {
                         glyph_ranges: FontGlyphRanges::chinese_simplified_common(),
-                        rasterizer_multiply: 1.5,
+                        rasterizer_multiply: 2f32,
                         oversample_h: 4,
-                        oversample_v: 4,
                         ..FontConfig::default()
                     }),
                 }]);
@@ -148,6 +144,7 @@ pub struct Windows {
     imgui: Context,
     window_is_active: bool,
     sync_interval: u32,
+    #[allow(unused)]
     hinstance: HINSTANCE,
 }
 
@@ -157,6 +154,11 @@ impl Windows {
         let target_hwnd = options.overlay_target.resolve_target_window()?;
         unsafe {
             ImGui_ImplWin32_EnableDpiAwareness();
+            let hmonitor = MonitorFromPoint(
+                POINT { x: 0, y: 0 },
+                windows::Win32::Graphics::Gdi::MONITOR_FROM_FLAGS(0x1),
+            );
+            let scale = ImGui_ImplWin32_GetDpiScaleForMonitor(hmonitor.0);
             let vec = PCWSTR(HSTRING::from(&options.title).as_ptr());
             let window_class = PCWSTR::from_raw(vec.as_ptr());
             let hinstance = if options.dll_hinstance > 0 {
@@ -186,8 +188,8 @@ impl Windows {
                 WS_POPUP | WS_CLIPSIBLINGS,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
-                300,
-                200,
+                (300f32 * scale) as _,
+                (200f32 * scale) as _,
                 None,
                 None,
                 Some(wc.hInstance),
@@ -207,6 +209,7 @@ impl Windows {
             imgui_context.style_mut().use_classic_colors();
             imgui_context.style_mut().colors[2] = [0.1, 0.1, 0.1, 1.];
             imgui_context.style_mut().window_rounding = 5.0;
+            imgui_context.style_mut().scale_all_sizes(scale);
             imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_KEYBOARD;
             imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_GAMEPAD;
             imgui_context.io_mut().config_flags |= ConfigFlags::NAV_ENABLE_SET_MOUSE_POS;
@@ -273,7 +276,6 @@ impl Windows {
             }
             {
                 let frame = self.imgui.new_frame();
-
                 exit = !render(frame, style)
             }
             let mut guard = GLOBAL_DATA.lock().unwrap();
@@ -361,12 +363,12 @@ impl Windows {
     fn free(&self) {
         let ptr = self.hinstance.0 as usize;
         let _ = unsafe {
-            CreateThread(
+            Win32::System::Threading::CreateThread(
                 None,
                 0,
                 Some(free_func),
                 Some(ptr as _),
-                THREAD_CREATION_FLAGS(0),
+                windows::Win32::System::Threading::THREAD_CREATION_FLAGS(0),
                 None,
             )
         };
@@ -384,16 +386,19 @@ unsafe extern "system" fn free_func(lpthreadparameter: *mut core::ffi::c_void) -
             log::error!("{e:?}");
         }
         *GLOBAL_DATA.lock().unwrap() = None;
-        FreeLibraryAndExitThread(HMODULE(lpthreadparameter as _), 0);
+        windows::Win32::System::LibraryLoader::FreeLibraryAndExitThread(
+            HMODULE(lpthreadparameter as _),
+            0,
+        );
     }
 }
 
 extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe {
-        if ImGui_ImplWin32_WndProcHandler(window.0, message, wparam, lparam).0 > 0 {
-            return LRESULT(0);
+        let handler = ImGui_ImplWin32_WndProcHandler(window.0, message, wparam, lparam);
+        if handler.0 > 0 {
+            return handler;
         }
-
         match message {
             WM_PAINT => {
                 let _ = ValidateRect(Some(window), None);
@@ -415,21 +420,20 @@ extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: L
                         return LRESULT(0);
                     }
                 }
-                DefWindowProcA(window, message, wparam, lparam)
+                return LRESULT(0);
             }
             WM_SYSCOMMAND => {
                 if ((wparam.0 & 0xfff0) as u32) == SC_KEYMENU {
                     LRESULT(0)
                 } else {
-                    DefWindowProcA(window, message, wparam, lparam)
+                    DefWindowProcW(window, message, wparam, lparam)
                 }
             }
             WM_DESTROY => {
                 PostQuitMessage(0);
                 LRESULT(0)
             }
-            WM_NCHITTEST => LRESULT(1),
-            _ => DefWindowProcA(window, message, wparam, lparam),
+            _ => DefWindowProcW(window, message, wparam, lparam),
         }
     }
 }

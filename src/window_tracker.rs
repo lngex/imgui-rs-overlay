@@ -87,7 +87,6 @@ impl OverlayTarget {
                 if iterations == MAX_ITERATIONS {
                     log::warn!("FindWindowExA seems to be cought in a loop.");
                 }
-
                 Default::default()
             }
         })
